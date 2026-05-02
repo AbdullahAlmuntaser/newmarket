@@ -4,15 +4,17 @@ import 'package:supermarket/core/events/app_events.dart';
 import 'package:supermarket/core/services/event_bus_service.dart';
 import 'package:supermarket/core/services/audit_service.dart';
 import 'package:supermarket/core/services/inventory_costing_service.dart';
+import 'package:supermarket/core/services/accounting_period_service.dart';
 import 'package:uuid/uuid.dart';
 
 class TransactionEngine {
   final AppDatabase db;
   final EventBusService eventBus;
+  final AccountingPeriodService accountingPeriodService;
   late final AuditService _auditService;
   InventoryCostingService? _costingService;
 
-  TransactionEngine(this.db, this.eventBus) {
+  TransactionEngine(this.db, this.eventBus, this.accountingPeriodService) {
     _auditService = AuditService(db);
   }
 
@@ -45,8 +47,13 @@ class TransactionEngine {
       throw Exception('معرف الفاتورة غير صالح.');
     }
     
-    // Check if accounting period is open before posting
-    await _checkAccountingPeriodOpen();
+    // Use centralized accounting period check
+    final isAllowed = await accountingPeriodService.isDateAllowed(DateTime.now());
+    if (!isAllowed) {
+      throw Exception(
+        'لا توجد فترة محاسبية مفتوحة حالياً. يرجى فتح فترة محاسبية جديدة.',
+      );
+    }
 
     try {
       await db.transaction(() async {
@@ -187,8 +194,13 @@ class TransactionEngine {
   /// Posts a sale (Draft -> Posted)
   /// This updates inventory batches (FEFO), records inventory transactions, and triggers accounting.
   Future<void> postSale(String saleId, {String? userId}) async {
-    // Check if accounting period is open before posting
-    await _checkAccountingPeriodOpen();
+    // Use centralized accounting period check
+    final isAllowed = await accountingPeriodService.isDateAllowed(DateTime.now());
+    if (!isAllowed) {
+      throw Exception(
+        'لا توجد فترة محاسبية مفتوحة حالياً. يرجى فتح فترة محاسبية جديدة.',
+      );
+    }
     
     // NEW: Check if there is an active shift for cash sales
     final saleHeader = await (db.select(db.sales)..where((s) => s.id.equals(saleId))).getSingle();
@@ -388,8 +400,13 @@ class TransactionEngine {
   /// Posts a sale return
   /// This updates inventory batches (re-adds stock), records inventory transactions, and triggers accounting.
   Future<void> postSaleReturn(String returnId, {String? userId}) async {
-    // Check if accounting period is open before posting
-    await _checkAccountingPeriodOpen();
+    // Use centralized accounting period check
+    final isAllowed = await accountingPeriodService.isDateAllowed(DateTime.now());
+    if (!isAllowed) {
+      throw Exception(
+        'لا توجد فترة محاسبية مفتوحة حالياً. يرجى فتح فترة محاسبية جديدة.',
+      );
+    }
     await db.transaction(() async {
       // 1. Get Return and Items
       final saleReturn = await (db.select(

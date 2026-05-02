@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:supermarket/data/datasources/local/app_database.dart';
 import 'package:supermarket/data/datasources/local/daos/accounting_dao.dart';
 import 'package:supermarket/core/utils/name_normalizer.dart';
+import 'package:supermarket/core/services/cache_service.dart';
 import 'package:uuid/uuid.dart';
 
 part 'customers_dao.g.dart';
@@ -51,6 +52,74 @@ class CustomerTransaction {
 class CustomersDao extends DatabaseAccessor<AppDatabase>
     with _$CustomersDaoMixin {
   CustomersDao(super.db);
+  
+  final _cache = CacheService();
+
+  /// Get customer by ID with caching
+  Future<Customer?> getCustomerById(String id) async {
+    // Try cache first
+    final cached = _cache.get<Customer>(CacheKeys.customer(id));
+    if (cached != null) {
+      return cached;
+    }
+
+    // Load from database
+    final customer = await (select(customers)..where((c) => c.id.equals(id))).getSingleOrNull();
+    
+    if (customer != null) {
+      _cache.set(CacheKeys.customer(id), customer, ttl: const Duration(minutes: 10));
+    }
+    
+    return customer;
+  }
+
+  /// Get customer by phone with caching
+  Future<Customer?> getCustomerByPhone(String phone) async {
+    final cached = _cache.get<Customer>(CacheKeys.customerByPhone(phone));
+    if (cached != null) {
+      return cached;
+    }
+
+    final customer = await (select(customers)..where((c) => c.phone.equals(phone))).getSingleOrNull();
+    
+    if (customer != null) {
+      _cache.set(CacheKeys.customerByPhone(phone), customer, ttl: const Duration(minutes: 10));
+    }
+    
+    return customer;
+  }
+
+  /// Get all customers with optional filtering - optimized with indexes
+  Future<List<Customer>> getCustomers({
+    String? customerType,
+    bool? isActive,
+    bool lowBalanceOnly = false,
+  }) async {
+    var query = select(customers);
+
+    if (customerType != null) {
+      query = query..where((c) => c.customerType.equals(customerType));
+    }
+    
+    if (isActive != null) {
+      query = query..where((c) => c.isActive.equals(isActive));
+    }
+    
+    if (lowBalanceOnly) {
+      query = query..where((c) => c.balance.isBiggerThan(const Variable(0)));
+    }
+
+    return query.get();
+  }
+
+  /// Clear customer cache when data changes
+  void clearCustomerCache([String? customerId]) {
+    if (customerId != null) {
+      _cache.remove(CacheKeys.customer(customerId));
+    } else {
+      _cache.clearByPattern('customer_*');
+    }
+  }
 
   Stream<List<Customer>> watchAllCustomers() {
     return (select(
@@ -60,10 +129,6 @@ class CustomersDao extends DatabaseAccessor<AppDatabase>
 
   Stream<int> watchTotalCustomers() {
     return select(customers).watch().map((rows) => rows.length);
-  }
-
-  Future<Customer?> getCustomerById(String id) {
-    return (select(customers)..where((c) => c.id.equals(id))).getSingleOrNull();
   }
 
   // AR Invoices
@@ -134,15 +199,21 @@ class CustomersDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<bool> updateCustomer(Customer entry) {
-    return update(customers).replace(entry);
+  Future<bool> updateCustomer(Customer entry) async {
+    final result = await update(customers).replace(entry);
+    // Clear cache for this specific customer
+    clearCustomerCache(entry.id);
+    return result;
   }
 
-  Future<int> deleteCustomer(Customer entry) {
+  Future<int> deleteCustomer(Customer entry) async {
     // نفضل التغيير إلى غير نشط بدلاً من الحذف الفعلي للحفاظ على السجلات المالية
-    return (update(customers)..where((t) => t.id.equals(entry.id))).write(
+    final result = await (update(customers)..where((t) => t.id.equals(entry.id))).write(
       const CustomersCompanion(isActive: Value(false)),
     );
+    // Clear cache for deleted customer
+    clearCustomerCache(entry.id);
+    return result;
   }
 
   /// بحث متقدم عن العملاء
@@ -348,11 +419,14 @@ class CustomersDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Get all quick customers (created from POS)
-  Future<List<Customer>> getQuickCustomers() {
-    return (select(customers)
+  Future<List<Customer>> getQuickCustomers() async {
+    final result = await (select(customers)
           ..where((c) => c.isQuickCustomer.equals(true))
           ..where((c) => c.isActive.equals(true)))
         .get();
+    // Cache quick customers list
+    _cache.set(CacheKeys.quickCustomers, result, ttl: const Duration(minutes: 5));
+    return result;
   }
 
   /// Watch only regular (non-quick) customers for credit sales
@@ -361,5 +435,14 @@ class CustomersDao extends DatabaseAccessor<AppDatabase>
           ..where((c) => c.isActive.equals(true))
           ..where((c) => c.isQuickCustomer.equals(false)))
         .watch();
+  }
+  
+  /// Get all customers cached
+  Future<List<Customer>> getAllCustomersCached() async {
+    return _cache.getOrLoad(
+      CacheKeys.customersAll,
+      () async => (select(customers)..where((c) => c.isActive.equals(true))).get(),
+      ttl: const Duration(minutes: 5),
+    );
   }
 }

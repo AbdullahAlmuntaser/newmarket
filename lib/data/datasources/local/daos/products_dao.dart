@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:supermarket/data/datasources/local/app_database.dart';
+import 'package:supermarket/core/services/cache_service.dart';
 
 part 'products_dao.g.dart';
 
@@ -35,9 +36,100 @@ class TransferItemData {
 class ProductsDao extends DatabaseAccessor<AppDatabase>
     with _$ProductsDaoMixin {
   ProductsDao(super.db);
+  
+  final _cache = CacheService();
 
   Stream<List<Product>> watchAllProducts() {
     return select(products).watch();
+  }
+
+  /// Get product by ID with caching
+  Future<Product?> getProductById(String id) async {
+    // Try cache first
+    final cached = _cache.get<Product>(CacheKeys.product(id));
+    if (cached != null) {
+      return cached;
+    }
+
+    // Load from database
+    final product = await (select(products)..where((p) => p.id.equals(id))).getSingleOrNull();
+    
+    if (product != null) {
+      _cache.set(CacheKeys.product(id), product, ttl: const Duration(minutes: 10));
+    }
+    
+    return product;
+  }
+
+  /// Get product by barcode with caching and optimized query
+  Future<Product?> getProductByBarcode(String barcode) async {
+    // Try cache first
+    final cached = _cache.get<Product>(CacheKeys.productByBarcode(barcode));
+    if (cached != null) {
+      return cached;
+    }
+
+    // Optimized query using index
+    final product = await (select(products)..where((p) => p.barcode.equals(barcode))).getSingleOrNull();
+    
+    if (product != null) {
+      _cache.set(CacheKeys.productByBarcode(barcode), product, ttl: const Duration(minutes: 10));
+    }
+    
+    return product;
+  }
+
+  /// Get product by SKU with caching
+  Future<Product?> getProductBySku(String sku) async {
+    final cached = _cache.get<Product>(CacheKeys.productBySku(sku));
+    if (cached != null) {
+      return cached;
+    }
+
+    final product = await (select(products)..where((p) => p.sku.equals(sku))).getSingleOrNull();
+    
+    if (product != null) {
+      _cache.set(CacheKeys.productBySku(sku), product, ttl: const Duration(minutes: 10));
+    }
+    
+    return product;
+  }
+
+  /// Get all products with optional filtering - optimized with indexes
+  Future<List<Product>> getProducts({
+    String? categoryId,
+    bool? isActive,
+    bool lowStockOnly = false,
+  }) async {
+    var query = select(products);
+
+    if (categoryId != null) {
+      query = query..where((p) => p.categoryId.equals(categoryId));
+    }
+    
+    if (isActive != null) {
+      query = query..where((p) => p.isActive.equals(isActive));
+    }
+    
+    if (lowStockOnly) {
+      query = query..where((p) => p.stock.isSmallerOrEqual(p.alertLimit));
+    }
+
+    return query.get();
+  }
+
+  /// Watch low stock products - uses index on alertLimit
+  Stream<List<Product>> watchLowStockProducts() {
+    return (select(products)..where((p) => p.stock.isSmallerOrEqual(p.alertLimit))).watch();
+  }
+
+  /// Clear product cache when data changes
+  void clearProductCache([String? productId]) {
+    if (productId != null) {
+      _cache.remove(CacheKeys.product(productId));
+    } else {
+      _cache.clearByPattern('product_*');
+    }
   }
 
   // ========== Warehouse & Batch Management ==========
@@ -202,16 +294,25 @@ class ProductsDao extends DatabaseAccessor<AppDatabase>
     )..where((p) => p.barcode.equals(barcode))).getSingleOrNull();
   }
 
-  Future<int> addProduct(ProductsCompanion entry) {
-    return into(products).insert(entry);
+  Future<int> addProduct(ProductsCompanion entry) async {
+    final result = await into(products).insert(entry);
+    // Clear cache when product is added
+    clearProductCache();
+    return result;
   }
 
-  Future<bool> updateProduct(Product entry) {
-    return update(products).replace(entry);
+  Future<bool> updateProduct(Product entry) async {
+    final result = await update(products).replace(entry);
+    // Clear cache for this specific product
+    clearProductCache(entry.id);
+    return result;
   }
 
-  Future<int> deleteProduct(Product entry) {
-    return delete(products).delete(entry);
+  Future<int> deleteProduct(Product entry) async {
+    final result = await delete(products).delete(entry);
+    // Clear cache for deleted product
+    clearProductCache(entry.id);
+    return result;
   }
 
   // ========== Variant Operations ==========

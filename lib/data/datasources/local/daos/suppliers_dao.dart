@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:supermarket/data/datasources/local/daos/accounting_dao.dart';
+import 'package:supermarket/core/services/cache_service.dart';
 import 'package:uuid/uuid.dart';
 import '../app_database.dart';
 
@@ -38,6 +39,69 @@ class SupplierTransaction {
 class SuppliersDao extends DatabaseAccessor<AppDatabase>
     with _$SuppliersDaoMixin {
   SuppliersDao(super.db);
+  
+  final _cache = CacheService();
+
+  /// Get supplier by ID with caching
+  Future<Supplier?> getSupplierById(String id) async {
+    // Try cache first
+    final cached = _cache.get<Supplier>(CacheKeys.supplier(id));
+    if (cached != null) {
+      return cached;
+    }
+
+    // Load from database
+    final supplier = await (select(suppliers)..where((s) => s.id.equals(id))).getSingleOrNull();
+    
+    if (supplier != null) {
+      _cache.set(CacheKeys.supplier(id), supplier, ttl: const Duration(minutes: 10));
+    }
+    
+    return supplier;
+  }
+
+  /// Get supplier by phone with caching
+  Future<Supplier?> getSupplierByPhone(String phone) async {
+    final cached = _cache.get<Supplier>(CacheKeys.supplierByPhone(phone));
+    if (cached != null) {
+      return cached;
+    }
+
+    final supplier = await (select(suppliers)..where((s) => s.phone.equals(phone))).getSingleOrNull();
+    
+    if (supplier != null) {
+      _cache.set(CacheKeys.supplierByPhone(phone), supplier, ttl: const Duration(minutes: 10));
+    }
+    
+    return supplier;
+  }
+
+  /// Get all suppliers with optional filtering - optimized with indexes
+  Future<List<Supplier>> getSuppliers({
+    String? supplierType,
+    bool? isActive,
+  }) async {
+    var query = select(suppliers);
+
+    if (supplierType != null) {
+      query = query..where((s) => s.supplierType.equals(supplierType));
+    }
+    
+    if (isActive != null) {
+      query = query..where((s) => s.isActive.equals(isActive));
+    }
+
+    return query.get();
+  }
+
+  /// Clear supplier cache when data changes
+  void clearSupplierCache([String? supplierId]) {
+    if (supplierId != null) {
+      _cache.remove(CacheKeys.supplier(supplierId));
+    } else {
+      _cache.clearByPattern('supplier_*');
+    }
+  }
 
   Stream<List<Supplier>> watchAllSuppliers() =>
       (select(suppliers)..where((tbl) => tbl.isActive.equals(true))).watch();

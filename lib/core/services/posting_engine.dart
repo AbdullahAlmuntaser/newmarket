@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:supermarket/data/datasources/local/app_database.dart';
-import 'package:supermarket/core/services/inventory_costing_service.dart';
+import 'package:supermarket/core/services/accounting_period_service.dart';
 import 'package:uuid/uuid.dart';
 
 enum TransactionType {
@@ -25,16 +25,20 @@ class PostingLine {
 
 class PostingEngine {
   final AppDatabase db;
-  final InventoryCostingService? costingService;
+  final AccountingPeriodService accountingPeriodService;
 
-  PostingEngine(this.db, {this.costingService});
+  PostingEngine(this.db, {required this.accountingPeriodService});
 
   Future<void> postEntry({
     required List<PostingLine> entries,
     required String reference,
     required DateTime date,
   }) async {
-    await _checkPeriodOpen();
+    // Use centralized accounting period check
+    final isAllowed = await accountingPeriodService.isDateAllowed(date);
+    if (!isAllowed) {
+      throw Exception('لا يمكن الترحيل: التاريخ يقع في فترة محاسبية مغلقة.');
+    }
 
     // Validate entries before posting
     if (entries.isEmpty) {
@@ -104,7 +108,12 @@ class PostingEngine {
     required String referenceId,
     required Map<String, dynamic> context,
   }) async {
-    await _checkPeriodOpen();
+    // Use centralized accounting period check
+    final isAllowed = await accountingPeriodService.isDateAllowed(DateTime.now());
+    if (!isAllowed) {
+      throw Exception('لا يمكن الترحيل: الفترة المحاسبية الحالية مغلقة.');
+    }
+    
     final profile =
         await (db.select(db.postingProfiles)
               ..where((p) => p.operationType.equals(type.name))
@@ -136,18 +145,6 @@ class PostingEngine {
       );
     }
     await db.accountingDao.createEntry(entry, lines);
-  }
-
-  Future<void> _checkPeriodOpen() async {
-    final now = DateTime.now();
-    final period =
-        await (db.select(db.accountingPeriods)
-              ..where((p) => p.isClosed.equals(false))
-              ..where((p) => p.startDate.isSmallerOrEqual(Variable(now)))
-              ..where((p) => p.endDate.isBiggerOrEqual(Variable(now))))
-            .getSingleOrNull();
-
-    if (period == null) throw Exception('Period is locked or closed.');
   }
 
   Future<List<PostingLine>> getEntriesByAccount(

@@ -53,16 +53,24 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeApp() async {
+    _updateStatus("جاري تهيئة النظام...");
+    debugPrint("INIT: Starting dependency injection...");
+    
     try {
-      _updateStatus("جاري تهيئة النظام...");
-      debugPrint("INIT: Starting dependency injection...");
-      
       final initFuture = di.init();
       final timeoutFuture = Future.delayed(const Duration(seconds: 30));
       
-      final result = await Future.any([initFuture, timeoutFuture]);
+      final completed = await Future.any([initFuture, timeoutFuture]);
       
-      debugPrint("INIT: DI completed, result type: ${result.runtimeType}");
+      if (completed == null) {
+        debugPrint("INIT: Timeout reached after 30 seconds!");
+        if (mounted) {
+          _showErrorTimeout();
+        }
+        return;
+      }
+      
+      debugPrint("INIT: DI completed successfully");
       
       _updateStatus("جاري تحميل الواجهة...");
       debugPrint("INIT: Loading main interface...");
@@ -83,18 +91,72 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _showError(String error) {
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => MaterialApp(
+          debugShowCheckedModeBanner: false,
           home: Scaffold(
+            appBar: AppBar(title: const Text("خطأ في التهيئة")),
             body: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 children: [
-                  const Icon(Icons.error, color: Colors.red, size: 60),
+                  const Icon(Icons.error, color: Colors.red, size: 80),
                   const SizedBox(height: 20),
-                  Text(error),
+                  Text(error, textAlign: TextAlign.center),
+                  const SizedBox(height: 30),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const SplashScreen()),
+                      );
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text("إعادة المحاولة"),
+                  ),
                 ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showErrorTimeout() {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(
+            appBar: AppBar(title: const Text("مهلة التهيئة انتهت")),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.warning, color: Colors.orange, size: 80),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "استغرقت تهيئة النظام أكثر من 30 ثانية",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    const SizedBox(height: 30),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(builder: (_) => const SplashScreen()),
+                        );
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text("إعادة المحاولة"),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

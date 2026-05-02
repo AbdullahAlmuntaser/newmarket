@@ -1262,7 +1262,7 @@ LazyDatabase _openConnection() {
       sqlite.sqlite3.tempDirectory = cachebase;
 
       debugPrint("DB: Creating NativeDatabase...");
-      final db = await NativeDatabase.createInBackground(file);
+      final db = NativeDatabase.createInBackground(file);
       debugPrint("DB: NativeDatabase created successfully");
       return db;
     } catch (e, stack) {

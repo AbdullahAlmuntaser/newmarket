@@ -877,6 +877,8 @@ class AppDatabase extends _$AppDatabase {
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
+      // Create additional indexes for better performance
+      await _createPerformanceIndexes(m);
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Direct migration instead of metadata-heavy reflection
@@ -894,11 +896,80 @@ class AppDatabase extends _$AppDatabase {
         try { await m.addColumn(products, products.allowFreeQty); } catch (_) {}
         try { await m.addColumn(products, products.isService); } catch (_) {}
       }
+      // Create performance indexes for existing databases
+      if (from < to) {
+        await _createPerformanceIndexes(m);
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON;');
+      // Optimize SQLite settings for performance
+      await customStatement('PRAGMA journal_mode = WAL;');
+      await customStatement('PRAGMA synchronous = NORMAL;');
+      await customStatement('PRAGMA cache_size = -64000;'); // 64MB cache
+      await customStatement('PRAGMA temp_store = MEMORY;');
+      await customStatement('PRAGMA mmap_size = 268435456;'); // 256MB
     },
   );
+
+  /// Creates performance indexes for frequently queried columns
+  Future<void> _createPerformanceIndexes(Migrator m) async {
+    try {
+      // Products indexes
+      await m.createIndex(Index('products_category_idx', 'CREATE INDEX IF NOT EXISTS products_category_idx ON products (category_id)'));
+      await m.createIndex(Index('products_supplier_idx', 'CREATE INDEX IF NOT EXISTS products_supplier_idx ON products (supplier_id)'));
+      await m.createIndex(Index('products_is_active_idx', 'CREATE INDEX IF NOT EXISTS products_is_active_idx ON products (is_active)'));
+      
+      // Customers indexes
+      await m.createIndex(Index('customers_phone_idx', 'CREATE INDEX IF NOT EXISTS customers_phone_idx ON customers (phone)'));
+      await m.createIndex(Index('customers_name_idx', 'CREATE INDEX IF NOT EXISTS customers_name_idx ON customers (name)'));
+      await m.createIndex(Index('customers_normalized_name_idx', 'CREATE INDEX IF NOT EXISTS customers_normalized_name_idx ON customers (normalized_name)'));
+      
+      // Suppliers indexes
+      await m.createIndex(Index('suppliers_phone_idx', 'CREATE INDEX IF NOT EXISTS suppliers_phone_idx ON suppliers (phone)'));
+      await m.createIndex(Index('suppliers_name_idx', 'CREATE INDEX IF NOT EXISTS suppliers_name_idx ON suppliers (name)'));
+      
+      // Sales indexes
+      await m.createIndex(Index('sales_customer_id_idx', 'CREATE INDEX IF NOT EXISTS sales_customer_id_idx ON sales (customer_id)'));
+      await m.createIndex(Index('sales_created_at_idx', 'CREATE INDEX IF NOT EXISTS sales_created_at_idx ON sales (created_at)'));
+      await m.createIndex(Index('sales_is_credit_idx', 'CREATE INDEX IF NOT EXISTS sales_is_credit_idx ON sales (is_credit)'));
+      await m.createIndex(Index('sales_status_idx', 'CREATE INDEX IF NOT EXISTS sales_status_idx ON sales (status)'));
+      
+      // Purchases indexes
+      await m.createIndex(Index('purchases_supplier_id_idx', 'CREATE INDEX IF NOT EXISTS purchases_supplier_id_idx ON purchases (supplier_id)'));
+      await m.createIndex(Index('purchases_date_idx', 'CREATE INDEX IF NOT EXISTS purchases_date_idx ON purchases (date)'));
+      await m.createIndex(Index('purchases_status_idx', 'CREATE INDEX IF NOT EXISTS purchases_status_idx ON purchases (status)'));
+      
+      // SaleItems indexes
+      await m.createIndex(Index('sale_items_product_id_idx', 'CREATE INDEX IF NOT EXISTS sale_items_product_id_idx ON sale_items (product_id)'));
+      await m.createIndex(Index('sale_items_warehouse_id_idx', 'CREATE INDEX IF NOT EXISTS sale_items_warehouse_id_idx ON sale_items (warehouse_id)'));
+      
+      // PurchaseItems indexes
+      await m.createIndex(Index('purchase_items_product_id_idx', 'CREATE INDEX IF NOT EXISTS purchase_items_product_id_idx ON purchase_items (product_id)'));
+      
+      // StockMovements indexes
+      await m.createIndex(Index('stock_movements_type_idx', 'CREATE INDEX IF NOT EXISTS stock_movements_type_idx ON stock_movements (type)'));
+      await m.createIndex(Index('stock_movements_movement_date_idx', 'CREATE INDEX IF NOT EXISTS stock_movements_movement_date_idx ON stock_movements (movement_date)'));
+      await m.createIndex(Index('stock_movements_reference_id_idx', 'CREATE INDEX IF NOT EXISTS stock_movements_reference_id_idx ON stock_movements (reference_id)'));
+      
+      // GLEntries indexes
+      await m.createIndex(Index('gl_entries_account_id_idx', 'CREATE INDEX IF NOT EXISTS gl_entries_account_id_idx ON gl_entries (account_id)'));
+      await m.createIndex(Index('gl_entries_date_idx', 'CREATE INDEX IF NOT EXISTS gl_entries_date_idx ON gl_entries (date)'));
+      
+      // ProductBatches indexes
+      await m.createIndex(Index('product_batches_product_id_idx', 'CREATE INDEX IF NOT EXISTS product_batches_product_id_idx ON product_batches (product_id)'));
+      await m.createIndex(Index('product_batches_warehouse_id_idx', 'CREATE INDEX IF NOT EXISTS product_batches_warehouse_id_idx ON product_batches (warehouse_id)'));
+      await m.createIndex(Index('product_batches_expiry_date_idx', 'CREATE INDEX IF NOT EXISTS product_batches_expiry_date_idx ON product_batches (expiry_date)'));
+      
+      // AuditLogs indexes
+      await m.createIndex(Index('audit_logs_user_id_idx', 'CREATE INDEX IF NOT EXISTS audit_logs_user_id_idx ON audit_logs (user_id)'));
+      await m.createIndex(Index('audit_logs_action_idx', 'CREATE INDEX IF NOT EXISTS audit_logs_action_idx ON audit_logs (action)'));
+      await m.createIndex(Index('audit_logs_created_at_idx', 'CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs (created_at)'));
+    } catch (e) {
+      // Ignore index creation errors (indexes may already exist)
+      debugPrint('Warning: Some indexes could not be created: $e');
+    }
+  }
 
   Future<int> getUnsyncedCount() async =>
       (select(syncQueue)).get().then((v) => v.length);

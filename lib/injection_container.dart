@@ -33,6 +33,7 @@ import 'core/services/pricing_service.dart';
 import 'core/services/transaction_engine.dart';
 import 'presentation/features/pos/bloc/pos_bloc.dart';
 import 'presentation/features/products/products_provider.dart';
+import 'core/services/accounting_period_service.dart';
 
 final sl = GetIt.instance;
 AppDatabase? _database;
@@ -63,11 +64,12 @@ Future<void> initServices() async {
 
     debugPrint("DI: Registering core services...");
     sl.registerLazySingleton<EventBusService>(() => EventBusService());
+    sl.registerLazySingleton<AccountingPeriodService>(() => AccountingPeriodService(db));
     sl.registerLazySingleton<InventoryCostingService>(
       () => InventoryCostingService(sl<StockMovementDao>(), sl<AppDatabase>()),
     );
-    sl.registerLazySingleton<PostingEngine>(
-      () => PostingEngine(db, costingService: sl<InventoryCostingService>()),
+    sl.registerFactory<PostingEngine>(
+      () => PostingEngine(db, accountingPeriodService: sl<AccountingPeriodService>()),
     );
     sl.registerLazySingleton<AccountingService>(
       () => AccountingService(db, sl<EventBusService>()),
@@ -78,10 +80,10 @@ Future<void> initServices() async {
     debugPrint("DI: Core services registered");
 
     debugPrint("DI: Registering business services...");
-    sl.registerLazySingleton<PurchaseService>(
+    sl.registerFactory<PurchaseService>(
       () => PurchaseService(db, sl<PostingEngine>(), sl<InventoryCostingService>()),
     );
-    sl.registerLazySingleton<SalesService>(
+    sl.registerFactory<SalesService>(
       () => SalesService(sl<PostingEngine>(), sl<InventoryService>()),
     );
     sl.registerLazySingleton<StatementService>(
@@ -120,12 +122,12 @@ Future<void> initServices() async {
     sl.registerLazySingleton<FinancialControlService>(
       () => FinancialControlService(
         db,
-        costingService: sl<InventoryCostingService>(),
+        accountingPeriodService: sl<AccountingPeriodService>(),
       ),
     );
     sl.registerLazySingleton<PricingService>(() => PricingService(db));
-    sl.registerLazySingleton<TransactionEngine>(() {
-      final engine = TransactionEngine(db, sl<EventBusService>());
+    sl.registerFactory<TransactionEngine>(() {
+      final engine = TransactionEngine(db, sl<EventBusService>(), sl<AccountingPeriodService>());
       engine.setCostingService(sl<InventoryCostingService>());
       return engine;
     });

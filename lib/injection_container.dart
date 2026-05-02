@@ -8,6 +8,7 @@ import 'core/services/event_bus_service.dart';
 import 'core/services/financial_control_service.dart';
 import 'core/services/grn_service.dart';
 import 'core/utils/drive_backup_service.dart';
+import 'core/utils/export_service.dart';
 import 'core/theme/theme_provider.dart';
 import 'data/datasources/local/app_database.dart';
 import 'data/datasources/local/daos/products_dao.dart';
@@ -119,6 +120,7 @@ Future<void> initServices() async {
     sl.registerLazySingleton<ReorderService>(() => ReorderService(db));
     sl.registerLazySingleton<SupplierAnalyticsService>(() => SupplierAnalyticsService(db));
     sl.registerLazySingleton<DriveBackupService>(() => DriveBackupService(db));
+    sl.registerLazySingleton<ExportService>(() => ExportService(db));
     sl.registerLazySingleton<FinancialControlService>(
       () => FinancialControlService(
         db,

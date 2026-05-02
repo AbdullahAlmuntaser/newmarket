@@ -1,34 +1,57 @@
 ```
 # Dependencies
 .pub/
-.dart_tool/
+.buildlog
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# Generated plugin build files
+lib/generated_plugin_registrant.dart
+
+# Build outputs
 build/
+**/ios/.generated/
+**/macos/.generated/
+
+# Environment
+.env
+.env.local
+.env.*
+!.env.example
 
 # Logs
 *.log
 **/logs
 
-# Environment variables
-.env
-.env.local
-.env.*
-
-# IDE files
-.idea/
-.vscode/
-*.swp
-*.swo
-
 # OS generated files
 .DS_Store
+**/.DS_Store
 Thumbs.db
-
-# Coverage
-coverage/
-*.coverage
-htmlcov/
+**/Thumbs.db
 
 # Temporary files
 *.tmp
 *.temp
+**/temp/
+
+# IDE files
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+*.swp
+*.swo
+
+# Dart tooling
+.dart_tool/
+**/.dart_tool/
+
+# Coverage
+coverage/
+**/coverage/
+
+# Local configuration
+local.properties
+**/local.properties
 ```

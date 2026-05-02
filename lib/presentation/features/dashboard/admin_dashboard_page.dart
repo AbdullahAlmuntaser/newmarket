@@ -5,11 +5,45 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:supermarket/core/auth/auth_provider.dart';
 import 'package:supermarket/core/services/accounting_service.dart';
+import 'package:supermarket/core/services/event_bus_service.dart';
+import 'package:supermarket/core/utils/export_service.dart';
+import 'package:supermarket/data/datasources/local/app_database.dart';
 import 'package:supermarket/presentation/features/accounting/accounting_provider.dart';
 import 'package:supermarket/l10n/app_localizations.dart';
+import 'dart:async';
 
-class AdminDashboardPage extends StatelessWidget {
+class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
+
+  @override
+  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
+}
+
+class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  StreamSubscription? _eventSubscription;
+  AccountingDashboardData? _cachedData;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupEventListeners();
+  }
+
+  void _setupEventListeners() {
+    final eventBus = context.read<EventBusService>();
+    _eventSubscription = eventBus.stream.listen((event) {
+      // Refresh dashboard on relevant events
+      setState(() {
+        _cachedData = null; // Clear cache to force refresh
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _eventSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +56,11 @@ class AdminDashboardPage extends StatelessWidget {
         title: Text(l10n.adminDashboard),
         automaticallyImplyLeading: false,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            tooltip: 'تصدير التقرير',
+            onPressed: () => _exportDashboard(context),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => accountingProvider.refresh(),
@@ -210,6 +249,49 @@ class AdminDashboardPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _exportDashboard(BuildContext context) async {
+    final db = context.read<AppDatabase>();
+    final exportService = ExportService(db);
+    
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Export products to CSV
+      final filePath = await exportService.exportProducts();
+      
+      // Close loading dialog
+      if (context.mounted) Navigator.pop(context);
+      
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم تصدير التقرير بنجاح: $filePath'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (context.mounted) Navigator.pop(context);
+      
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل التصدير: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildWelcomeCard(

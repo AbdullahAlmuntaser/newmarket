@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:url_launcher/url_launcher.dart';
 
 /// خدمة الاتصالات الموحدة للاتصال والـ WhatsApp و SMS
@@ -19,7 +20,7 @@ class CommunicationService {
     try {
       return await launchUrl(launchUri);
     } catch (e) {
-      print('Error making phone call: $e');
+      developer.log('Error making phone call', error: e, name: 'CommunicationService');
       return false;
     }
   }
@@ -56,7 +57,7 @@ class CommunicationService {
       
       return await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
-      print('Error opening WhatsApp: $e');
+      developer.log('Error opening WhatsApp', error: e, name: 'CommunicationService');
       return false;
     }
   }
@@ -78,7 +79,7 @@ class CommunicationService {
       
       return await launchUrl(smsUri);
     } catch (e) {
-      print('Error sending SMS: $e');
+      developer.log('Error sending SMS', error: e, name: 'CommunicationService');
       return false;
     }
   }

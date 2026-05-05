@@ -39088,15 +39088,24 @@ class $GoodReceivedNotesTable extends GoodReceivedNotes
       requiredDuringInsert: false,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES branches (id)'));
-  static const VerificationMeta _purchaseOrderIdMeta =
-      const VerificationMeta('purchaseOrderId');
+  static const VerificationMeta _purchaseIdMeta =
+      const VerificationMeta('purchaseId');
   @override
-  late final GeneratedColumn<String> purchaseOrderId = GeneratedColumn<String>(
-      'purchase_order_id', aliasedName, false,
+  late final GeneratedColumn<String> purchaseId = GeneratedColumn<String>(
+      'purchase_id', aliasedName, true,
       type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'REFERENCES purchase_orders (id)'));
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES purchases (id)'));
+  static const VerificationMeta _supplierIdMeta =
+      const VerificationMeta('supplierId');
+  @override
+  late final GeneratedColumn<String> supplierId = GeneratedColumn<String>(
+      'supplier_id', aliasedName, true,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES suppliers (id)'));
   static const VerificationMeta _warehouseIdMeta =
       const VerificationMeta('warehouseId');
   @override
@@ -39148,7 +39157,8 @@ class $GoodReceivedNotesTable extends GoodReceivedNotes
         deviceId,
         syncStatus,
         branchId,
-        purchaseOrderId,
+        purchaseId,
+        supplierId,
         warehouseId,
         grnNumber,
         receivedDate,
@@ -39191,13 +39201,17 @@ class $GoodReceivedNotesTable extends GoodReceivedNotes
       context.handle(_branchIdMeta,
           branchId.isAcceptableOrUnknown(data['branch_id']!, _branchIdMeta));
     }
-    if (data.containsKey('purchase_order_id')) {
+    if (data.containsKey('purchase_id')) {
       context.handle(
-          _purchaseOrderIdMeta,
-          purchaseOrderId.isAcceptableOrUnknown(
-              data['purchase_order_id']!, _purchaseOrderIdMeta));
-    } else if (isInserting) {
-      context.missing(_purchaseOrderIdMeta);
+          _purchaseIdMeta,
+          purchaseId.isAcceptableOrUnknown(
+              data['purchase_id']!, _purchaseIdMeta));
+    }
+    if (data.containsKey('supplier_id')) {
+      context.handle(
+          _supplierIdMeta,
+          supplierId.isAcceptableOrUnknown(
+              data['supplier_id']!, _supplierIdMeta));
     }
     if (data.containsKey('warehouse_id')) {
       context.handle(
@@ -39254,8 +39268,10 @@ class $GoodReceivedNotesTable extends GoodReceivedNotes
           .read(DriftSqlType.int, data['${effectivePrefix}sync_status'])!,
       branchId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}branch_id']),
-      purchaseOrderId: attachedDatabase.typeMapping.read(
-          DriftSqlType.string, data['${effectivePrefix}purchase_order_id'])!,
+      purchaseId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}purchase_id']),
+      supplierId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}supplier_id']),
       warehouseId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}warehouse_id'])!,
       grnNumber: attachedDatabase.typeMapping
@@ -39285,7 +39301,8 @@ class GoodReceivedNote extends DataClass
   final String? deviceId;
   final int syncStatus;
   final String? branchId;
-  final String purchaseOrderId;
+  final String? purchaseId;
+  final String? supplierId;
   final String warehouseId;
   final String grnNumber;
   final DateTime receivedDate;
@@ -39299,7 +39316,8 @@ class GoodReceivedNote extends DataClass
       this.deviceId,
       required this.syncStatus,
       this.branchId,
-      required this.purchaseOrderId,
+      this.purchaseId,
+      this.supplierId,
       required this.warehouseId,
       required this.grnNumber,
       required this.receivedDate,
@@ -39319,7 +39337,12 @@ class GoodReceivedNote extends DataClass
     if (!nullToAbsent || branchId != null) {
       map['branch_id'] = Variable<String>(branchId);
     }
-    map['purchase_order_id'] = Variable<String>(purchaseOrderId);
+    if (!nullToAbsent || purchaseId != null) {
+      map['purchase_id'] = Variable<String>(purchaseId);
+    }
+    if (!nullToAbsent || supplierId != null) {
+      map['supplier_id'] = Variable<String>(supplierId);
+    }
     map['warehouse_id'] = Variable<String>(warehouseId);
     map['grn_number'] = Variable<String>(grnNumber);
     map['received_date'] = Variable<DateTime>(receivedDate);
@@ -39345,7 +39368,12 @@ class GoodReceivedNote extends DataClass
       branchId: branchId == null && nullToAbsent
           ? const Value.absent()
           : Value(branchId),
-      purchaseOrderId: Value(purchaseOrderId),
+      purchaseId: purchaseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(purchaseId),
+      supplierId: supplierId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(supplierId),
       warehouseId: Value(warehouseId),
       grnNumber: Value(grnNumber),
       receivedDate: Value(receivedDate),
@@ -39368,7 +39396,8 @@ class GoodReceivedNote extends DataClass
       deviceId: serializer.fromJson<String?>(json['deviceId']),
       syncStatus: serializer.fromJson<int>(json['syncStatus']),
       branchId: serializer.fromJson<String?>(json['branchId']),
-      purchaseOrderId: serializer.fromJson<String>(json['purchaseOrderId']),
+      purchaseId: serializer.fromJson<String?>(json['purchaseId']),
+      supplierId: serializer.fromJson<String?>(json['supplierId']),
       warehouseId: serializer.fromJson<String>(json['warehouseId']),
       grnNumber: serializer.fromJson<String>(json['grnNumber']),
       receivedDate: serializer.fromJson<DateTime>(json['receivedDate']),
@@ -39387,7 +39416,8 @@ class GoodReceivedNote extends DataClass
       'deviceId': serializer.toJson<String?>(deviceId),
       'syncStatus': serializer.toJson<int>(syncStatus),
       'branchId': serializer.toJson<String?>(branchId),
-      'purchaseOrderId': serializer.toJson<String>(purchaseOrderId),
+      'purchaseId': serializer.toJson<String?>(purchaseId),
+      'supplierId': serializer.toJson<String?>(supplierId),
       'warehouseId': serializer.toJson<String>(warehouseId),
       'grnNumber': serializer.toJson<String>(grnNumber),
       'receivedDate': serializer.toJson<DateTime>(receivedDate),
@@ -39404,7 +39434,8 @@ class GoodReceivedNote extends DataClass
           Value<String?> deviceId = const Value.absent(),
           int? syncStatus,
           Value<String?> branchId = const Value.absent(),
-          String? purchaseOrderId,
+          Value<String?> purchaseId = const Value.absent(),
+          Value<String?> supplierId = const Value.absent(),
           String? warehouseId,
           String? grnNumber,
           DateTime? receivedDate,
@@ -39418,7 +39449,8 @@ class GoodReceivedNote extends DataClass
         deviceId: deviceId.present ? deviceId.value : this.deviceId,
         syncStatus: syncStatus ?? this.syncStatus,
         branchId: branchId.present ? branchId.value : this.branchId,
-        purchaseOrderId: purchaseOrderId ?? this.purchaseOrderId,
+        purchaseId: purchaseId.present ? purchaseId.value : this.purchaseId,
+        supplierId: supplierId.present ? supplierId.value : this.supplierId,
         warehouseId: warehouseId ?? this.warehouseId,
         grnNumber: grnNumber ?? this.grnNumber,
         receivedDate: receivedDate ?? this.receivedDate,
@@ -39435,9 +39467,10 @@ class GoodReceivedNote extends DataClass
       syncStatus:
           data.syncStatus.present ? data.syncStatus.value : this.syncStatus,
       branchId: data.branchId.present ? data.branchId.value : this.branchId,
-      purchaseOrderId: data.purchaseOrderId.present
-          ? data.purchaseOrderId.value
-          : this.purchaseOrderId,
+      purchaseId:
+          data.purchaseId.present ? data.purchaseId.value : this.purchaseId,
+      supplierId:
+          data.supplierId.present ? data.supplierId.value : this.supplierId,
       warehouseId:
           data.warehouseId.present ? data.warehouseId.value : this.warehouseId,
       grnNumber: data.grnNumber.present ? data.grnNumber.value : this.grnNumber,
@@ -39460,7 +39493,8 @@ class GoodReceivedNote extends DataClass
           ..write('deviceId: $deviceId, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('branchId: $branchId, ')
-          ..write('purchaseOrderId: $purchaseOrderId, ')
+          ..write('purchaseId: $purchaseId, ')
+          ..write('supplierId: $supplierId, ')
           ..write('warehouseId: $warehouseId, ')
           ..write('grnNumber: $grnNumber, ')
           ..write('receivedDate: $receivedDate, ')
@@ -39479,7 +39513,8 @@ class GoodReceivedNote extends DataClass
       deviceId,
       syncStatus,
       branchId,
-      purchaseOrderId,
+      purchaseId,
+      supplierId,
       warehouseId,
       grnNumber,
       receivedDate,
@@ -39496,7 +39531,8 @@ class GoodReceivedNote extends DataClass
           other.deviceId == this.deviceId &&
           other.syncStatus == this.syncStatus &&
           other.branchId == this.branchId &&
-          other.purchaseOrderId == this.purchaseOrderId &&
+          other.purchaseId == this.purchaseId &&
+          other.supplierId == this.supplierId &&
           other.warehouseId == this.warehouseId &&
           other.grnNumber == this.grnNumber &&
           other.receivedDate == this.receivedDate &&
@@ -39512,7 +39548,8 @@ class GoodReceivedNotesCompanion extends UpdateCompanion<GoodReceivedNote> {
   final Value<String?> deviceId;
   final Value<int> syncStatus;
   final Value<String?> branchId;
-  final Value<String> purchaseOrderId;
+  final Value<String?> purchaseId;
+  final Value<String?> supplierId;
   final Value<String> warehouseId;
   final Value<String> grnNumber;
   final Value<DateTime> receivedDate;
@@ -39527,7 +39564,8 @@ class GoodReceivedNotesCompanion extends UpdateCompanion<GoodReceivedNote> {
     this.deviceId = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.branchId = const Value.absent(),
-    this.purchaseOrderId = const Value.absent(),
+    this.purchaseId = const Value.absent(),
+    this.supplierId = const Value.absent(),
     this.warehouseId = const Value.absent(),
     this.grnNumber = const Value.absent(),
     this.receivedDate = const Value.absent(),
@@ -39543,7 +39581,8 @@ class GoodReceivedNotesCompanion extends UpdateCompanion<GoodReceivedNote> {
     this.deviceId = const Value.absent(),
     this.syncStatus = const Value.absent(),
     this.branchId = const Value.absent(),
-    required String purchaseOrderId,
+    this.purchaseId = const Value.absent(),
+    this.supplierId = const Value.absent(),
     required String warehouseId,
     required String grnNumber,
     this.receivedDate = const Value.absent(),
@@ -39551,8 +39590,7 @@ class GoodReceivedNotesCompanion extends UpdateCompanion<GoodReceivedNote> {
     this.notes = const Value.absent(),
     this.status = const Value.absent(),
     this.rowid = const Value.absent(),
-  })  : purchaseOrderId = Value(purchaseOrderId),
-        warehouseId = Value(warehouseId),
+  })  : warehouseId = Value(warehouseId),
         grnNumber = Value(grnNumber);
   static Insertable<GoodReceivedNote> custom({
     Expression<String>? id,
@@ -39561,7 +39599,8 @@ class GoodReceivedNotesCompanion extends UpdateCompanion<GoodReceivedNote> {
     Expression<String>? deviceId,
     Expression<int>? syncStatus,
     Expression<String>? branchId,
-    Expression<String>? purchaseOrderId,
+    Expression<String>? purchaseId,
+    Expression<String>? supplierId,
     Expression<String>? warehouseId,
     Expression<String>? grnNumber,
     Expression<DateTime>? receivedDate,
@@ -39577,7 +39616,8 @@ class GoodReceivedNotesCompanion extends UpdateCompanion<GoodReceivedNote> {
       if (deviceId != null) 'device_id': deviceId,
       if (syncStatus != null) 'sync_status': syncStatus,
       if (branchId != null) 'branch_id': branchId,
-      if (purchaseOrderId != null) 'purchase_order_id': purchaseOrderId,
+      if (purchaseId != null) 'purchase_id': purchaseId,
+      if (supplierId != null) 'supplier_id': supplierId,
       if (warehouseId != null) 'warehouse_id': warehouseId,
       if (grnNumber != null) 'grn_number': grnNumber,
       if (receivedDate != null) 'received_date': receivedDate,
@@ -39595,7 +39635,8 @@ class GoodReceivedNotesCompanion extends UpdateCompanion<GoodReceivedNote> {
       Value<String?>? deviceId,
       Value<int>? syncStatus,
       Value<String?>? branchId,
-      Value<String>? purchaseOrderId,
+      Value<String?>? purchaseId,
+      Value<String?>? supplierId,
       Value<String>? warehouseId,
       Value<String>? grnNumber,
       Value<DateTime>? receivedDate,
@@ -39610,7 +39651,8 @@ class GoodReceivedNotesCompanion extends UpdateCompanion<GoodReceivedNote> {
       deviceId: deviceId ?? this.deviceId,
       syncStatus: syncStatus ?? this.syncStatus,
       branchId: branchId ?? this.branchId,
-      purchaseOrderId: purchaseOrderId ?? this.purchaseOrderId,
+      purchaseId: purchaseId ?? this.purchaseId,
+      supplierId: supplierId ?? this.supplierId,
       warehouseId: warehouseId ?? this.warehouseId,
       grnNumber: grnNumber ?? this.grnNumber,
       receivedDate: receivedDate ?? this.receivedDate,
@@ -39642,8 +39684,11 @@ class GoodReceivedNotesCompanion extends UpdateCompanion<GoodReceivedNote> {
     if (branchId.present) {
       map['branch_id'] = Variable<String>(branchId.value);
     }
-    if (purchaseOrderId.present) {
-      map['purchase_order_id'] = Variable<String>(purchaseOrderId.value);
+    if (purchaseId.present) {
+      map['purchase_id'] = Variable<String>(purchaseId.value);
+    }
+    if (supplierId.present) {
+      map['supplier_id'] = Variable<String>(supplierId.value);
     }
     if (warehouseId.present) {
       map['warehouse_id'] = Variable<String>(warehouseId.value);
@@ -39678,7 +39723,8 @@ class GoodReceivedNotesCompanion extends UpdateCompanion<GoodReceivedNote> {
           ..write('deviceId: $deviceId, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('branchId: $branchId, ')
-          ..write('purchaseOrderId: $purchaseOrderId, ')
+          ..write('purchaseId: $purchaseId, ')
+          ..write('supplierId: $supplierId, ')
           ..write('warehouseId: $warehouseId, ')
           ..write('grnNumber: $grnNumber, ')
           ..write('receivedDate: $receivedDate, ')
@@ -41445,6 +41491,287 @@ class DeliveryNoteItemsCompanion extends UpdateCompanion<DeliveryNoteItem> {
   }
 }
 
+class $AppConfigTableTable extends AppConfigTable
+    with TableInfo<$AppConfigTableTable, AppConfig> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppConfigTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+      'key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+      'value', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [key, value, description, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_config_table';
+  @override
+  VerificationContext validateIntegrity(Insertable<AppConfig> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+          _keyMeta, key.isAcceptableOrUnknown(data['key']!, _keyMeta));
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+          _valueMeta, value.isAcceptableOrUnknown(data['value']!, _valueMeta));
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  AppConfig map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppConfig(
+      key: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}key'])!,
+      value: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}value']),
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description']),
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $AppConfigTableTable createAlias(String alias) {
+    return $AppConfigTableTable(attachedDatabase, alias);
+  }
+}
+
+class AppConfig extends DataClass implements Insertable<AppConfig> {
+  /// مفتاح الإعداد (مثل: default_warehouse_id, tax_rate)
+  final String key;
+
+  /// قيمة الإعداد
+  final String? value;
+
+  /// وصف الإعداد (اختياري)
+  final String? description;
+
+  /// تاريخ آخر تحديث
+  final DateTime updatedAt;
+  const AppConfig(
+      {required this.key,
+      this.value,
+      this.description,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    if (!nullToAbsent || value != null) {
+      map['value'] = Variable<String>(value);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  AppConfigTableCompanion toCompanion(bool nullToAbsent) {
+    return AppConfigTableCompanion(
+      key: Value(key),
+      value:
+          value == null && nullToAbsent ? const Value.absent() : Value(value),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory AppConfig.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppConfig(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String?>(json['value']),
+      description: serializer.fromJson<String?>(json['description']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String?>(value),
+      'description': serializer.toJson<String?>(description),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  AppConfig copyWith(
+          {String? key,
+          Value<String?> value = const Value.absent(),
+          Value<String?> description = const Value.absent(),
+          DateTime? updatedAt}) =>
+      AppConfig(
+        key: key ?? this.key,
+        value: value.present ? value.value : this.value,
+        description: description.present ? description.value : this.description,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  AppConfig copyWithCompanion(AppConfigTableCompanion data) {
+    return AppConfig(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+      description:
+          data.description.present ? data.description.value : this.description,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppConfig(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('description: $description, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value, description, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppConfig &&
+          other.key == this.key &&
+          other.value == this.value &&
+          other.description == this.description &&
+          other.updatedAt == this.updatedAt);
+}
+
+class AppConfigTableCompanion extends UpdateCompanion<AppConfig> {
+  final Value<String> key;
+  final Value<String?> value;
+  final Value<String?> description;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const AppConfigTableCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.description = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AppConfigTableCompanion.insert({
+    required String key,
+    this.value = const Value.absent(),
+    this.description = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : key = Value(key);
+  static Insertable<AppConfig> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<String>? description,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (description != null) 'description': description,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AppConfigTableCompanion copyWith(
+      {Value<String>? key,
+      Value<String?>? value,
+      Value<String?>? description,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return AppConfigTableCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      description: description ?? this.description,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppConfigTableCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('description: $description, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -41537,6 +41864,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DeliveryNotesTable deliveryNotes = $DeliveryNotesTable(this);
   late final $DeliveryNoteItemsTable deliveryNoteItems =
       $DeliveryNoteItemsTable(this);
+  late final $AppConfigTableTable appConfigTable = $AppConfigTableTable(this);
   late final ProductsDao productsDao = ProductsDao(this as AppDatabase);
   late final SalesDao salesDao = SalesDao(this as AppDatabase);
   late final CustomersDao customersDao = CustomersDao(this as AppDatabase);
@@ -41623,7 +41951,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         goodReceivedNotes,
         goodReceivedNoteItems,
         deliveryNotes,
-        deliveryNoteItems
+        deliveryNoteItems,
+        appConfigTable
       ];
 }
 
@@ -43919,6 +44248,23 @@ class $$SuppliersTableFilterComposer
         builder: (joinBuilder, parentComposers) =>
             $$APInvoicesTableFilterComposer(ComposerState($state.db,
                 $state.db.aPInvoices, joinBuilder, parentComposers)));
+    return f(composer);
+  }
+
+  ComposableFilter goodReceivedNotesRefs(
+      ComposableFilter Function($$GoodReceivedNotesTableFilterComposer f) f) {
+    final $$GoodReceivedNotesTableFilterComposer composer =
+        $state.composerBuilder(
+            composer: this,
+            getCurrentColumn: (t) => t.id,
+            referencedTable: $state.db.goodReceivedNotes,
+            getReferencedColumn: (t) => t.supplierId,
+            builder: (joinBuilder, parentComposers) =>
+                $$GoodReceivedNotesTableFilterComposer(ComposerState(
+                    $state.db,
+                    $state.db.goodReceivedNotes,
+                    joinBuilder,
+                    parentComposers)));
     return f(composer);
   }
 }
@@ -48177,6 +48523,23 @@ class $$PurchasesTableFilterComposer
                     parentComposers)));
     return f(composer);
   }
+
+  ComposableFilter goodReceivedNotesRefs(
+      ComposableFilter Function($$GoodReceivedNotesTableFilterComposer f) f) {
+    final $$GoodReceivedNotesTableFilterComposer composer =
+        $state.composerBuilder(
+            composer: this,
+            getCurrentColumn: (t) => t.id,
+            referencedTable: $state.db.goodReceivedNotes,
+            getReferencedColumn: (t) => t.purchaseId,
+            builder: (joinBuilder, parentComposers) =>
+                $$GoodReceivedNotesTableFilterComposer(ComposerState(
+                    $state.db,
+                    $state.db.goodReceivedNotes,
+                    joinBuilder,
+                    parentComposers)));
+    return f(composer);
+  }
 }
 
 class $$PurchasesTableOrderingComposer
@@ -49052,23 +49415,6 @@ class $$PurchaseOrdersTableFilterComposer
                 $$PurchaseOrderItemsTableFilterComposer(ComposerState(
                     $state.db,
                     $state.db.purchaseOrderItems,
-                    joinBuilder,
-                    parentComposers)));
-    return f(composer);
-  }
-
-  ComposableFilter goodReceivedNotesRefs(
-      ComposableFilter Function($$GoodReceivedNotesTableFilterComposer f) f) {
-    final $$GoodReceivedNotesTableFilterComposer composer =
-        $state.composerBuilder(
-            composer: this,
-            getCurrentColumn: (t) => t.id,
-            referencedTable: $state.db.goodReceivedNotes,
-            getReferencedColumn: (t) => t.purchaseOrderId,
-            builder: (joinBuilder, parentComposers) =>
-                $$GoodReceivedNotesTableFilterComposer(ComposerState(
-                    $state.db,
-                    $state.db.goodReceivedNotes,
                     joinBuilder,
                     parentComposers)));
     return f(composer);
@@ -61371,7 +61717,8 @@ typedef $$GoodReceivedNotesTableCreateCompanionBuilder
   Value<String?> deviceId,
   Value<int> syncStatus,
   Value<String?> branchId,
-  required String purchaseOrderId,
+  Value<String?> purchaseId,
+  Value<String?> supplierId,
   required String warehouseId,
   required String grnNumber,
   Value<DateTime> receivedDate,
@@ -61388,7 +61735,8 @@ typedef $$GoodReceivedNotesTableUpdateCompanionBuilder
   Value<String?> deviceId,
   Value<int> syncStatus,
   Value<String?> branchId,
-  Value<String> purchaseOrderId,
+  Value<String?> purchaseId,
+  Value<String?> supplierId,
   Value<String> warehouseId,
   Value<String> grnNumber,
   Value<DateTime> receivedDate,
@@ -61422,7 +61770,8 @@ class $$GoodReceivedNotesTableTableManager extends RootTableManager<
             Value<String?> deviceId = const Value.absent(),
             Value<int> syncStatus = const Value.absent(),
             Value<String?> branchId = const Value.absent(),
-            Value<String> purchaseOrderId = const Value.absent(),
+            Value<String?> purchaseId = const Value.absent(),
+            Value<String?> supplierId = const Value.absent(),
             Value<String> warehouseId = const Value.absent(),
             Value<String> grnNumber = const Value.absent(),
             Value<DateTime> receivedDate = const Value.absent(),
@@ -61438,7 +61787,8 @@ class $$GoodReceivedNotesTableTableManager extends RootTableManager<
             deviceId: deviceId,
             syncStatus: syncStatus,
             branchId: branchId,
-            purchaseOrderId: purchaseOrderId,
+            purchaseId: purchaseId,
+            supplierId: supplierId,
             warehouseId: warehouseId,
             grnNumber: grnNumber,
             receivedDate: receivedDate,
@@ -61454,7 +61804,8 @@ class $$GoodReceivedNotesTableTableManager extends RootTableManager<
             Value<String?> deviceId = const Value.absent(),
             Value<int> syncStatus = const Value.absent(),
             Value<String?> branchId = const Value.absent(),
-            required String purchaseOrderId,
+            Value<String?> purchaseId = const Value.absent(),
+            Value<String?> supplierId = const Value.absent(),
             required String warehouseId,
             required String grnNumber,
             Value<DateTime> receivedDate = const Value.absent(),
@@ -61470,7 +61821,8 @@ class $$GoodReceivedNotesTableTableManager extends RootTableManager<
             deviceId: deviceId,
             syncStatus: syncStatus,
             branchId: branchId,
-            purchaseOrderId: purchaseOrderId,
+            purchaseId: purchaseId,
+            supplierId: supplierId,
             warehouseId: warehouseId,
             grnNumber: grnNumber,
             receivedDate: receivedDate,
@@ -61547,15 +61899,27 @@ class $$GoodReceivedNotesTableFilterComposer
     return composer;
   }
 
-  $$PurchaseOrdersTableFilterComposer get purchaseOrderId {
-    final $$PurchaseOrdersTableFilterComposer composer = $state.composerBuilder(
+  $$PurchasesTableFilterComposer get purchaseId {
+    final $$PurchasesTableFilterComposer composer = $state.composerBuilder(
         composer: this,
-        getCurrentColumn: (t) => t.purchaseOrderId,
-        referencedTable: $state.db.purchaseOrders,
+        getCurrentColumn: (t) => t.purchaseId,
+        referencedTable: $state.db.purchases,
         getReferencedColumn: (t) => t.id,
         builder: (joinBuilder, parentComposers) =>
-            $$PurchaseOrdersTableFilterComposer(ComposerState($state.db,
-                $state.db.purchaseOrders, joinBuilder, parentComposers)));
+            $$PurchasesTableFilterComposer(ComposerState(
+                $state.db, $state.db.purchases, joinBuilder, parentComposers)));
+    return composer;
+  }
+
+  $$SuppliersTableFilterComposer get supplierId {
+    final $$SuppliersTableFilterComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.supplierId,
+        referencedTable: $state.db.suppliers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder, parentComposers) =>
+            $$SuppliersTableFilterComposer(ComposerState(
+                $state.db, $state.db.suppliers, joinBuilder, parentComposers)));
     return composer;
   }
 
@@ -61655,16 +62019,27 @@ class $$GoodReceivedNotesTableOrderingComposer
     return composer;
   }
 
-  $$PurchaseOrdersTableOrderingComposer get purchaseOrderId {
-    final $$PurchaseOrdersTableOrderingComposer composer =
-        $state.composerBuilder(
-            composer: this,
-            getCurrentColumn: (t) => t.purchaseOrderId,
-            referencedTable: $state.db.purchaseOrders,
-            getReferencedColumn: (t) => t.id,
-            builder: (joinBuilder, parentComposers) =>
-                $$PurchaseOrdersTableOrderingComposer(ComposerState($state.db,
-                    $state.db.purchaseOrders, joinBuilder, parentComposers)));
+  $$PurchasesTableOrderingComposer get purchaseId {
+    final $$PurchasesTableOrderingComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.purchaseId,
+        referencedTable: $state.db.purchases,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder, parentComposers) =>
+            $$PurchasesTableOrderingComposer(ComposerState(
+                $state.db, $state.db.purchases, joinBuilder, parentComposers)));
+    return composer;
+  }
+
+  $$SuppliersTableOrderingComposer get supplierId {
+    final $$SuppliersTableOrderingComposer composer = $state.composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.supplierId,
+        referencedTable: $state.db.suppliers,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder, parentComposers) =>
+            $$SuppliersTableOrderingComposer(ComposerState(
+                $state.db, $state.db.suppliers, joinBuilder, parentComposers)));
     return composer;
   }
 
@@ -62538,6 +62913,119 @@ class $$DeliveryNoteItemsTableOrderingComposer
   }
 }
 
+typedef $$AppConfigTableTableCreateCompanionBuilder = AppConfigTableCompanion
+    Function({
+  required String key,
+  Value<String?> value,
+  Value<String?> description,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$AppConfigTableTableUpdateCompanionBuilder = AppConfigTableCompanion
+    Function({
+  Value<String> key,
+  Value<String?> value,
+  Value<String?> description,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$AppConfigTableTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AppConfigTableTable,
+    AppConfig,
+    $$AppConfigTableTableFilterComposer,
+    $$AppConfigTableTableOrderingComposer,
+    $$AppConfigTableTableCreateCompanionBuilder,
+    $$AppConfigTableTableUpdateCompanionBuilder> {
+  $$AppConfigTableTableTableManager(
+      _$AppDatabase db, $AppConfigTableTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$AppConfigTableTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$AppConfigTableTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<String> key = const Value.absent(),
+            Value<String?> value = const Value.absent(),
+            Value<String?> description = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AppConfigTableCompanion(
+            key: key,
+            value: value,
+            description: description,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String key,
+            Value<String?> value = const Value.absent(),
+            Value<String?> description = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AppConfigTableCompanion.insert(
+            key: key,
+            value: value,
+            description: description,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+        ));
+}
+
+class $$AppConfigTableTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $AppConfigTableTable> {
+  $$AppConfigTableTableFilterComposer(super.$state);
+  ColumnFilters<String> get key => $state.composableBuilder(
+      column: $state.table.key,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get value => $state.composableBuilder(
+      column: $state.table.value,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get description => $state.composableBuilder(
+      column: $state.table.description,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get updatedAt => $state.composableBuilder(
+      column: $state.table.updatedAt,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$AppConfigTableTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $AppConfigTableTable> {
+  $$AppConfigTableTableOrderingComposer(super.$state);
+  ColumnOrderings<String> get key => $state.composableBuilder(
+      column: $state.table.key,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get value => $state.composableBuilder(
+      column: $state.table.value,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get description => $state.composableBuilder(
+      column: $state.table.description,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get updatedAt => $state.composableBuilder(
+      column: $state.table.updatedAt,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
@@ -62673,4 +63161,6 @@ class $AppDatabaseManager {
       $$DeliveryNotesTableTableManager(_db, _db.deliveryNotes);
   $$DeliveryNoteItemsTableTableManager get deliveryNoteItems =>
       $$DeliveryNoteItemsTableTableManager(_db, _db.deliveryNoteItems);
+  $$AppConfigTableTableTableManager get appConfigTable =>
+      $$AppConfigTableTableTableManager(_db, _db.appConfigTable);
 }

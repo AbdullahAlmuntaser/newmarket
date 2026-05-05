@@ -11,6 +11,9 @@ import 'package:supermarket/presentation/features/pos/widgets/barcode_scanner_di
 import 'package:supermarket/presentation/features/pos/widgets/category_selector.dart';
 import 'package:supermarket/injection_container.dart';
 import 'package:supermarket/core/services/communication_service.dart';
+import 'package:supermarket/core/utils/printer_helper.dart';
+import 'package:supermarket/data/datasources/local/app_database.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PosPage extends StatelessWidget {
   const PosPage({super.key});
@@ -133,17 +136,30 @@ class _PosViewState extends State<PosView> {
     
     if (!mounted) return;
     
-    final customerName = state.sale.customerId ?? 'عميل نقدي';
-    final hasCustomerPhone = state.sale.customerId != null;
+    // جلب بيانات العميل إذا وجدت
+    String customerName = 'عميل نقدي';
+    String? customerPhone;
     
+    if (state.sale.customerId != null) {
+      final customer = await sl<AppDatabase>().customersDao.getCustomerById(state.sale.customerId!);
+      if (customer != null) {
+        customerName = customer.name;
+        customerPhone = customer.phone;
+      }
+    }
+    
+    final hasCustomerPhone = customerPhone != null && customerPhone.isNotEmpty;
+    
+    if (!context.mounted) return;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('🧾 الفاتورة #${state.sale.id.substring(0, 8)}'),
+        title: Text('🧾 الفاتورة #${state.sale.id.substring(0, 8)}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('الإجمالي: ${state.sale.totalAmount.toStringAsFixed(2)} ر.س'),
+            Text('الإجمالي: ${state.sale.total.toStringAsFixed(2)} ر.س'),
             const SizedBox(height: 16),
             const Text('كيف تريد إرسال الفاتورة؟'),
           ],
@@ -157,11 +173,13 @@ class _PosViewState extends State<PosView> {
           IconButton.filledTonal(
             icon: const Icon(Icons.print),
             tooltip: 'طباعة',
-            onPressed: () {
-              // TODO: تنفيذ الطباعة
+            onPressed: () async {
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('جاري التحضير للطباعة...')),
+              await PrinterHelper.printReceipt(
+                state.sale,
+                state.items,
+                state.products,
+                customerName: customerName,
               );
             },
           ),
@@ -172,12 +190,10 @@ class _PosViewState extends State<PosView> {
               tooltip: 'WhatsApp',
               onPressed: () async {
                 Navigator.pop(ctx);
-                // ملاحظة: نحتاج لجلب رقم هاتف العميل من قاعدة البيانات
-                // هذا مثال مبسط
                 await commService.sendInvoiceViaWhatsApp(
-                  phoneNumber: '966500000000', // TODO: جلب الرقم الفعلي
+                  phoneNumber: customerPhone!,
                   invoiceNumber: state.sale.id.substring(0, 8),
-                  total: state.sale.totalAmount,
+                  total: state.sale.total,
                   customerName: customerName,
                 );
               },
@@ -188,7 +204,12 @@ class _PosViewState extends State<PosView> {
             tooltip: 'مشاركة',
             onPressed: () {
               Navigator.pop(ctx);
-              // TODO: تنفيذ المشاركة
+              final String shareText = 'فاتورة من نظام السوبر ماركت\n'
+                  'رقم الفاتورة: #${state.sale.id.substring(0, 8)}\n'
+                  'العميل: $customerName\n'
+                  'الإجمالي: ${state.sale.total.toStringAsFixed(2)} ر.س\n'
+                  'شكراً لتسوقكم معنا!';
+              Share.share(shareText);
             },
           ),
         ],

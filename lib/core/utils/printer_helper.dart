@@ -1,6 +1,7 @@
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:supermarket/data/datasources/local/app_database.dart' show Sale, SaleItem, Product;
 
@@ -53,7 +54,61 @@ class PrinterHelper {
     List<Product> products, {
     String? customerName,
   }) async {
-    // Printing disabled temporarily
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.roll80,
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Center(
+                child: pw.Text(
+                  'SUPERMARKET SYSTEM',
+                  style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 5),
+              pw.Text('ID: ${sale.id.substring(0, 8)}'),
+              pw.Text('Date: ${DateFormat("yyyy-MM-dd HH:mm").format(sale.createdAt)}'),
+              if (customerName != null) pw.Text('Customer: $customerName'),
+              pw.Divider(),
+              pw.TableHelper.fromTextArray(
+                headers: ['Item', 'Qty', 'Price', 'Total'],
+                data: items.map((item) {
+                  final product = products.firstWhere((p) => p.id == item.productId);
+                  return [
+                    product.name,
+                    item.quantity.toString(),
+                    item.price.toStringAsFixed(2),
+                    (item.quantity * item.price).toStringAsFixed(2),
+                  ];
+                }).toList(),
+              ),
+              pw.Divider(),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('TOTAL:'),
+                  pw.Text(
+                    sale.total.toStringAsFixed(2),
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+              pw.Center(child: pw.Text('Thank you!')),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => pdf.save(),
+      name: 'receipt_${sale.id.substring(0, 8)}.pdf',
+    );
   }
 
   // Fallback if needed
@@ -77,7 +132,7 @@ class PrinterHelper {
       ),
     );
     bytes += generator.text(
-      'Date: ${DateFormat('yyyy-MM-dd HH:mm').format(sale.createdAt)}',
+      'Date: ${DateFormat("yyyy-MM-dd HH:mm").format(sale.createdAt)}',
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.text(

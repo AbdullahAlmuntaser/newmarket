@@ -33,8 +33,8 @@ class GrnService {
       await db.into(db.goodReceivedNotes).insert(
         GoodReceivedNotesCompanion.insert(
           id: Value(grnId),
-          purchaseId: purchaseId,
-          supplierId: purchase.supplierId,
+          purchaseId: Value(purchaseId),
+          supplierId: Value(purchase.supplierId),
           warehouseId: warehouseId,
           grnNumber: grnNumber,
           receivedBy: Value(receivedBy),

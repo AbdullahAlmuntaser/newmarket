@@ -43,7 +43,7 @@ class PurchaseService {
   Future<void> postPurchase(String purchaseId) async {
     // 1. Verify that GRN exists for this purchase
     final grn = await (db.select(db.goodReceivedNotes)
-          ..where((g) => g.purchaseOrderId.equals(purchaseId))
+          ..where((g) => g.purchaseId.equals(purchaseId))
           ..where((g) => g.status.equals('POSTED')))
         .getSingleOrNull();
 

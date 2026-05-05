@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
-import '../database/database.dart';
-import '../database/tables/app_config_table.dart';
+import '../../data/datasources/local/app_database.dart';
 
 /// خدمة إدارة إعدادات التطبيق الديناميكية
 /// تستبدل القيم المزروعة (Hardcoded) بقيم قابلة للتغيير من واجهة المستخدم
@@ -19,7 +18,7 @@ class AppConfigService {
 
   /// الحصول على قيمة إعداد معينة
   Future<String?> getString(String key) async {
-    final result = await (_db.select(_db.appConfig)..where((t) => t.key.equals(key))).getSingleOrNull();
+    final result = await (_db.select(_db.appConfigTable)..where((t) => t.key.equals(key))).getSingleOrNull();
     return result?.value;
   }
 
@@ -37,8 +36,8 @@ class AppConfigService {
 
   /// حفظ إعداد نصي
   Future<void> setString(String key, String value) async {
-    await _db.into(_db.appConfig).putOnConflict(
-      AppConfigCompanion(
+    await _db.into(_db.appConfigTable).insert(
+      AppConfigTableCompanion(
         key: Value(key),
         value: Value(value),
         updatedAt: Value(DateTime.now()),
@@ -87,7 +86,7 @@ class AppConfigService {
 
   /// تهيئة الإعدادات الافتراضية عند أول تشغيل
   Future<void> initializeDefaults() async {
-    final hasConfig = await (_db.select(_db.appConfig)..limit(1)).get().then((v) => v.isNotEmpty);
+    final hasConfig = await (_db.select(_db.appConfigTable)..limit(1)).get().then((v) => v.isNotEmpty);
     if (!hasConfig) {
       await setString(keyDefaultWarehouse, 'MAIN_WAREHOUSE');
       await setString(keyDefaultBranch, 'BR001');

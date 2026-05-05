@@ -66,7 +66,7 @@ class CustomerTrailingWidgets extends StatelessWidget {
             tooltip: 'WhatsApp',
             onPressed: () => commService.sendWhatsAppMessage(
               phoneNumber: customer.phone!,
-              message: 'مرحباً $customerName، نشكرك على ثقتكم بنا.',
+              message: 'مرحباً ${customer.name}، نشكرك على ثقتكم بنا.',
             ),
           ),
         const SizedBox(width: 4),

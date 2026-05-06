@@ -21,6 +21,9 @@ import 'daos/product_units_dao.dart';
 import 'daos/audit_dao.dart';
 import 'daos/stock_movement_dao.dart';
 import 'tables/app_config_table.dart';
+import 'tables/fixed_assets_tables.dart';
+import 'tables/payroll_tables.dart';
+import 'tables/advanced_accounting_tables.dart';
 import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 
 part 'app_database.g.dart';
@@ -853,6 +856,17 @@ class SalesOrderItems extends Table with SyncableTable {
     DeliveryNotes,
     DeliveryNoteItems,
     AppConfigTable,
+    // Advanced Accounting Tables
+    AssetCategories,
+    AssetDepreciationLogs,
+    AssetDisposals,
+    PayrollRuns,
+    PayrollDetails,
+    AdditionalDeductions,
+    ExchangeRates,
+    Budgets,
+    BankStatements,
+    BankStatementLines,
   ],
   daos: [
     ProductsDao,

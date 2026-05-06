@@ -48,6 +48,12 @@ import 'package:supermarket/presentation/features/accounting/fixed_assets_page.d
 import 'package:supermarket/presentation/features/accounting/manual_journal_entry_page.dart';
 import 'package:supermarket/presentation/features/accounting/manual_voucher_page.dart';
 import 'package:supermarket/presentation/features/accounting/reconciliation_page.dart';
+import 'package:supermarket/presentation/features/accounting/cost_centers_page.dart';
+import 'package:supermarket/presentation/features/accounting/budgets_page.dart';
+import 'package:supermarket/presentation/features/accounting/ap_invoices_page.dart';
+import 'package:supermarket/presentation/features/accounting/supplier_ledger_page.dart';
+import 'package:supermarket/presentation/features/accounting/ar_invoices_page.dart';
+import 'package:supermarket/presentation/features/accounting/customer_ledger_page.dart';
 import 'package:supermarket/presentation/features/accounting/accounting_periods_page.dart';
 import 'package:supermarket/presentation/features/accounting/shifts_page.dart';
 import 'package:supermarket/presentation/features/accounting/checks_page.dart';
@@ -159,6 +165,7 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/accounting/shifts', builder: (context, state) => const ShiftsPage()),
     GoRoute(path: '/accounting/checks', builder: (context, state) => const ChecksPage()),
     GoRoute(path: '/accounting/cost-centers', builder: (context, state) => const CostCentersPage()),
+    GoRoute(path: '/accounting/budgets', builder: (context, state) => const BudgetsPage()),
     GoRoute(path: '/accounting/ap-invoices', builder: (context, state) => const APInvoicesPage()),
     GoRoute(path: '/accounting/supplier-ledger', builder: (context, state) => const SupplierLedgerPage()),
     GoRoute(path: '/accounting/ar-invoices', builder: (context, state) => const ARInvoicesPage()),

@@ -557,4 +557,135 @@ class AccountingDao extends DatabaseAccessor<AppDatabase>
       totalEquity: totalEquity,
     );
   }
+
+  // Budget Management Methods
+  Future<List<Budget>> getAllBudgets() async {
+    return (select(budgets)..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .get();
+  }
+
+  Future<Budget?> getBudgetById(int id) async {
+    return (select(budgets)..where((t) => t.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<List<Budget>> getBudgetsByPeriod(String period) async {
+    return (select(budgets)..where((t) => t.period.equals(period)))
+        .get();
+  }
+
+  Future<int> createBudget(BudgetsCompanion companion) async {
+    return into(budgets).insert(companion);
+  }
+
+  Future<bool> updateBudget(int id, BudgetsCompanion companion) async {
+    return (update(budgets)..where((t) => t.id.equals(id))).write(companion);
+  }
+
+  Future<bool> deleteBudget(int id) async {
+    return (delete(budgets)..where((t) => t.id.equals(id))).go() > 0;
+  }
+
+  Future<void> updateActualAmount(int budgetId, double actualAmount) async {
+    await (update(budgets)..where((t) => t.id.equals(budgetId)))
+        .write(BudgetsCompanion(actualAmount: Value(actualAmount)));
+  }
+
+  // Cost Center Methods
+  Future<List<CostCenter>> getAllCostCenters() async {
+    return (select(costCenters)..orderBy([(t) => OrderingTerm.asc(t.name)]))
+        .get();
+  }
+
+  Future<int> createCostCenter(CostCentersCompanion companion) async {
+    return into(costCenters).insert(companion);
+  }
+
+  // Currency Methods
+  Future<List<Currency>> getAllCurrencies() async {
+    return (select(currencies)..orderBy([(t) => OrderingTerm.asc(t.code)])).get();
+  }
+
+  Future<Currency?> getBaseCurrency() async {
+    return (select(currencies)..where((t) => t.isBase.equals(true))).getSingleOrNull();
+  }
+
+  Future<int> createCurrency(CurrenciesCompanion companion) async {
+    return into(currencies).insert(companion);
+  }
+
+  // Exchange Rate Methods
+  Future<double?> getExchangeRate({
+    required int fromCurrencyId,
+    required int toCurrencyId,
+    DateTime? date,
+  }) async {
+    final queryDate = date ?? DateTime.now();
+    final result = await (select(exchangeRates)
+          ..where((t) =>
+              t.fromCurrencyId.equals(fromCurrencyId) &
+              t.toCurrencyId.equals(toCurrencyId) &
+              t.effectiveDate.isSmallerOrEqualValue(queryDate))
+          ..orderBy([(t) => OrderingTerm.desc(t.effectiveDate)])
+          ..limit(1))
+        .getSingleOrNull();
+    return result?.rate;
+  }
+
+  // Bank Statement Methods
+  Future<List<BankStatement>> getAllBankStatements() async {
+    return (select(bankStatements)..orderBy([(t) => OrderingTerm.desc(t.statementDate)]))
+        .get();
+  }
+
+  Future<int> createBankStatement(BankStatementsCompanion companion) async {
+    return into(bankStatements).insert(companion);
+  }
+
+  Future<List<BankStatementLine>> getBankStatementLines(int statementId) async {
+    return (select(bankStatementLines)
+          ..where((t) => t.statementId.equals(statementId))
+          ..orderBy([(t) => OrderingTerm.asc(t.transactionDate)]))
+        .get();
+  }
+
+  Future<int> createBankStatementLine(BankStatementLinesCompanion companion) async {
+    return into(bankStatementLines).insert(companion);
+  }
+
+  Future<bool> matchBankLineWithJournal({
+    required int lineId,
+    required int journalEntryId,
+  }) async {
+    return (update(bankStatementLines)..where((t) => t.id.equals(lineId)))
+        .write(BankStatementLinesCompanion(
+          matchedJournalEntryId: Value(journalEntryId),
+          reconciliationStatus: Value('matched'),
+        ));
+  }
+
+  // Audit Log Methods
+  Future<List<AuditLog>> getAuditLogs({
+    String? tableName,
+    int? recordId,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    var query = select(auditLogs);
+    
+    if (tableName != null) {
+      query = query..where((t) => t.tableName.equals(tableName));
+    }
+    if (recordId != null) {
+      query = query..where((t) => t.recordId.equals(recordId));
+    }
+    if (startDate != null && endDate != null) {
+      query = query..where((t) => t.timestamp.isBetween(Variable(startDate), Variable(endDate)));
+    }
+    
+    return (query..orderBy([(t) => OrderingTerm.desc(t.timestamp)])).get();
+  }
+
+  Future<int> createAuditLog(AuditLogsCompanion companion) async {
+    return into(auditLogs).insert(companion);
+  }
 }

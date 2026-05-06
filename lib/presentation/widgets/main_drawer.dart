@@ -358,6 +358,11 @@ class MainDrawer extends StatelessWidget {
                       ),
                       _buildSubItem(
                         context,
+                        'الميزانيات التقديرية',
+                        '/accounting/budgets',
+                      ),
+                      _buildSubItem(
+                        context,
                         l10n?.apInvoices ?? 'فواتير الذمم الدائنة',
                         '/accounting/ap-invoices',
                       ),

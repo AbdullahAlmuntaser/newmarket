@@ -3,6 +3,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:supermarket/data/datasources/local/app_database.dart';
 import 'package:supermarket/core/services/accounting_service.dart';
 import 'package:supermarket/core/services/audit_service.dart';
+import 'package:supermarket/core/services/app_config_service.dart';
 import 'package:uuid/uuid.dart';
 
 class InventoryTransactionReport {
@@ -28,9 +29,11 @@ class BatchReport {
 class InventoryService {
   final AppDatabase db;
   late final AuditService _auditService;
+  late final AppConfigService _configService;
 
   InventoryService(this.db) {
     _auditService = AuditService(db);
+    _configService = AppConfigService(db);
   }
 
   // ==================== REPORTING ====================
@@ -237,15 +240,16 @@ class InventoryService {
                   deductFromThisBatch * batch.costPrice;
             }
           } else {
-            // فائض
-            // إنشاء دفعة جديدة إذا لم تكن هناك دفعة سابقة
+            // فائض - إنشاء دفعة جديدة
+            // الحصول على المستودع الافتراضي من الإعدادات
+            final defaultWarehouseId = await _configService.getDefaultWarehouseId();
             const uuid = Uuid();
             final averageCost = product.buyPrice;
             await db.into(db.productBatches).insert(
               ProductBatchesCompanion(
                 id: drift.Value(uuid.v4()),
                 productId: drift.Value(productId),
-                warehouseId: const drift.Value('WH001'),
+                warehouseId: drift.Value(defaultWarehouseId),
                 batchNumber: drift.Value('AUDIT-${auditId.toString().substring(0, 8)}'),
                 expiryDate: const drift.Value(null),
                 quantity: drift.Value(difference),

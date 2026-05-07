@@ -2,14 +2,16 @@ import 'package:drift/drift.dart';
 import 'package:supermarket/core/services/inventory_costing_service.dart';
 import 'package:supermarket/data/datasources/local/app_database.dart';
 import 'package:supermarket/core/services/posting_engine.dart';
+import 'package:supermarket/core/services/app_config_service.dart';
 import 'package:uuid/uuid.dart';
 
 class PurchaseService {
   final AppDatabase db;
   final PostingEngine postingEngine;
   final InventoryCostingService inventoryCostingService;
+  final AppConfigService configService;
 
-  PurchaseService(this.db, this.postingEngine, this.inventoryCostingService);
+  PurchaseService(this.db, this.postingEngine, this.inventoryCostingService, this.configService);
 
   Future<Purchase> createPurchase({
     required String supplierId,
@@ -67,7 +69,10 @@ class PurchaseService {
     double totalExpenses = (purchase.shippingCost + purchase.otherExpenses);
 
     double discount = purchase.discount;
-    double tax = (subtotal - discount) * 0.15;
+    
+    // الحصول على نسبة الضريبة من الإعدادات الديناميكية
+    final taxRate = await configService.getTaxRate();
+    double tax = (subtotal - discount) * taxRate;
 
     await postingEngine.post(
       type: TransactionType.purchase,

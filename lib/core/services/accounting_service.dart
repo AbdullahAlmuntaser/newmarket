@@ -1270,9 +1270,16 @@ class AccountingService {
     SalesReturn saleReturn,
     List<SalesReturnItem> items,
   ) async {
+    // التحقق من الصلاحيات
+    if (!await permissionService.check(PermissionCode.POST_SALE_RETURN)) {
+      throw Exception('Permission denied: POST_SALE_RETURN');
+    }
+
     final dao = db.accountingDao;
     final originalSale = await db.salesDao.getSaleById(saleReturn.saleId);
     if (originalSale == null) throw Exception('Original sale not found.');
+    
+    try {
 
     final entryId = const Uuid().v4();
     final salesReturnAccount = await dao.getAccountByCode(codeSalesReturns);

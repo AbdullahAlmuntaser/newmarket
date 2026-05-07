@@ -73,6 +73,23 @@ class AppConfigService {
     return await getDouble(keyTaxRate, defaultValue: 0.15); // 15% افتراضي
   }
 
+  /// الحصول على قيمة منطقية (Boolean)
+  Future<bool> getBool(String key, {bool defaultValue = false}) async {
+    final val = await getString(key);
+    if (val == null) return defaultValue;
+    return val.toLowerCase() == 'true' || val == '1';
+  }
+
+  /// حفظ إعداد منطقي
+  Future<void> setBool(String key, bool value) async {
+    await setString(key, value ? 'true' : 'false');
+  }
+
+  /// السماح بالمخزون السلبي
+  Future<bool> allowNegativeStock() async {
+    return await getBool('allow_negative_stock', defaultValue: false);
+  }
+
   /// الحصول على رسالة الفاتورة الافتراضية للواتساب
   Future<String> getInvoiceMessage() async {
     return await getString(keyInvoiceMessage) ?? 

@@ -353,16 +353,24 @@ class InventoryService {
     required double quantity,
     required String warehouseId,
     String? referenceId,
+    String? userId,
   }) async {
     await db.transaction(() async {
       final product = await (db.select(
         db.products,
       )..where((p) => p.id.equals(itemId))).getSingle();
       
-      if (product.stock < quantity) throw Exception('Insufficient stock');
+      // التحقق من إعدادات السماح بالمخزون السلبي
+      final allowNegative = await _configService.getBool('allow_negative_stock', defaultValue: false);
+      
+      if (!allowNegative && product.stock < quantity) {
+        throw Exception('الرصيد الحالي (${product.stock}) غير كافٍ لخصم الكمية ($quantity). العملية مرفوضة.');
+      }
 
+      final newStock = product.stock - quantity;
+      
       await (db.update(db.products)..where((p) => p.id.equals(itemId))).write(
-        ProductsCompanion(stock: drift.Value(product.stock - quantity)),
+        ProductsCompanion(stock: drift.Value(newStock)),
       );
 
       await db
@@ -372,9 +380,23 @@ class InventoryService {
               productId: itemId,
               quantity: -quantity,
               type: 'SALE',
+              warehouseId: warehouseId,
               referenceId: drift.Value(referenceId),
+              userId: drift.Value(userId),
+              notes: drift.Value(allowNegative && newStock < 0 ? 'تم السماح بالمخزون السلبي' : null),
             ),
           );
+
+      // تسجيل Audit Log إذا تم السماح بالمخزون السلبي
+      if (allowNegative && newStock < 0) {
+        await _auditService.log(
+          action: 'NEGATIVE_STOCK_ALLOWED',
+          targetEntity: 'Products',
+          entityId: itemId,
+          userId: userId ?? 'SYSTEM',
+          details: 'تم خصم الكمية $quantity والرصيد أصبح $newStock (مسموح حسب الإعدادات)',
+        );
+      }
     });
   }
 

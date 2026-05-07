@@ -1,3 +1,4 @@
+```
 # Compiled and build artifacts
 *.pyc
 __pycache__/
@@ -18,24 +19,6 @@ venv/
 .env.local
 .env.*
 
-# Build directories
-dist/
-build/
-target/
-
-# Python specific
-*.pyc
-__pycache__/
-*.pyo
-*.pyd
-.Python
-*.so
-.PyInstaller/
-.pytest_cache/
-.mypy_cache/
-.coverage
-coverage/
-
 # Logs and temp files
 *.log
 *.tmp
@@ -45,14 +28,16 @@ coverage/
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# OS generated files
-.DS_Store
-Thumbs.db
+# Coverage
+coverage/
+htmlcov/
+.coverage
 
-# Compressed files
+# Distribution / packaging
+dist/
+build/
+*.tar.gz
 *.zip
 *.gz
 *.tar
@@ -71,29 +56,26 @@ Thumbs.db
 *.Z
 *.lz
 *.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
 
-# Dart/Flutter specific
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Testing
+.mypy_cache/
+.pytest_cache/
+target/
+.gradle/
+
+# Dart specific
 .dart_tool/
-.packages
 .pub-cache/
-.pub/
-build/
 *.g.dart
 *.freezed.dart
 
-# Coverage
-coverage/
-htmlcov/
-
-# Gradle
-.gradle/
-
-# Temporary files
-*.tmp
-*~
-.DS_Store
-Thumbs.db
+# Flutter specific
+**/ios/**
+**/android/**
+*.iml
+*.lock
+```

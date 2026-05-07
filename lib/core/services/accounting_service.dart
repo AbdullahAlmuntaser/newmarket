@@ -7,6 +7,7 @@ import 'package:supermarket/core/events/app_events.dart';
 import 'event_bus_service.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'dart:developer' as developer;
+import 'app_config_service.dart';
 
 part 'accounting_service.g.dart';
 
@@ -223,9 +224,11 @@ class AccountingService {
   final AppDatabase db;
   final EventBusService eventBus;
   late final AuditService _auditService;
+  late final AppConfigService _configService;
 
   AccountingService(this.db, this.eventBus) {
     _auditService = AuditService(db);
+    _configService = AppConfigService(db);
     _listenToEvents();
   }
 
@@ -278,6 +281,9 @@ class AccountingService {
       double currentBalance = lastTransaction?.runningBalance ?? 0.0;
       double newBalance = currentBalance + (debit - credit);
 
+      // الحصول على معرف الفرع الافتراضي من الإعدادات
+      final effectiveBranchId = branchId ?? await _configService.getDefaultBranchId();
+
       await db.into(db.accountTransactions).insert(
             AccountTransactionsCompanion.insert(
               accountId: accountId,
@@ -287,7 +293,7 @@ class AccountingService {
               debit: Value(debit),
               credit: Value(credit),
               runningBalance: Value(newBalance),
-              branchId: Value(branchId ?? 'BR001'),
+              branchId: Value(effectiveBranchId),
             ),
           );
     });
@@ -306,6 +312,9 @@ class AccountingService {
     final customer = await db.customersDao.getCustomerById(event.customerId);
     final customerAccountId = customer?.accountId ?? arAccount.id;
 
+    // الحصول على معرف الفرع الافتراضي من الإعدادات
+    final defaultBranchId = await _configService.getDefaultBranchId();
+
     final entry = GLEntriesCompanion.insert(
       id: Value(entryId),
       description: 'سند قبض: ${customer?.name ?? "عميل"} - ${event.note ?? ""}',
@@ -314,7 +323,7 @@ class AccountingService {
       referenceId: Value(event.paymentId),
       status: const Value('POSTED'),
       postedAt: Value(DateTime.now()),
-      branchId: const Value('BR001'),
+      branchId: Value(defaultBranchId),
     );
 
     final lines = [
@@ -323,14 +332,14 @@ class AccountingService {
         accountId: cashAccount.id,
         debit: Value(event.amount),
         credit: const Value(0.0),
-        branchId: const Value('BR001'),
+        branchId: Value(defaultBranchId),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
         accountId: customerAccountId,
         debit: const Value(0.0),
         credit: Value(event.amount),
-        branchId: const Value('BR001'),
+        branchId: Value(defaultBranchId),
       ),
     ];
 
@@ -342,7 +351,7 @@ class AccountingService {
       type: 'PAYMENT',
       referenceId: event.paymentId,
       credit: event.amount,
-      branchId: 'BR001',
+      branchId: defaultBranchId,
     );
   }
 
@@ -359,6 +368,9 @@ class AccountingService {
     final supplier = await db.suppliersDao.getSupplierById(event.supplierId);
     final supplierAccountId = supplier?.accountId ?? apAccount.id;
 
+    // الحصول على معرف الفرع الافتراضي من الإعدادات
+    final defaultBranchId = await _configService.getDefaultBranchId();
+
     final entry = GLEntriesCompanion.insert(
       id: Value(entryId),
       description: 'سند صرف: ${supplier?.name ?? "مورد"} - ${event.note ?? ""}',
@@ -367,7 +379,7 @@ class AccountingService {
       referenceId: Value(event.paymentId),
       status: const Value('POSTED'),
       postedAt: Value(DateTime.now()),
-      branchId: const Value('BR001'),
+      branchId: Value(defaultBranchId),
     );
 
     final lines = [
@@ -376,14 +388,14 @@ class AccountingService {
         accountId: supplierAccountId,
         debit: Value(event.amount),
         credit: const Value(0.0),
-        branchId: const Value('BR001'),
+        branchId: Value(defaultBranchId),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
         accountId: cashAccount.id,
         debit: const Value(0.0),
         credit: Value(event.amount),
-        branchId: const Value('BR001'),
+        branchId: Value(defaultBranchId),
       ),
     ];
 
@@ -395,7 +407,7 @@ class AccountingService {
       type: 'PAYMENT',
       referenceId: event.paymentId,
       debit: event.amount,
-      branchId: 'BR001',
+      branchId: defaultBranchId,
     );
   }
 
@@ -422,122 +434,125 @@ class AccountingService {
 
   Future<void> seedDefaultAccounts({String? branchId}) async {
     final dao = db.accountingDao;
+    // الحصول على معرف الفرع الافتراضي من الإعدادات إذا لم يتم تحديده
+    final effectiveBranchId = branchId ?? await _configService.getDefaultBranchId();
+    
     final accounts = {
       codeCash: GLAccountsCompanion.insert(
         code: codeCash,
         name: 'الصندوق',
         type: 'ASSET',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeBank: GLAccountsCompanion.insert(
         code: codeBank,
         name: 'البنك',
         type: 'ASSET',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeAccountsReceivable: GLAccountsCompanion.insert(
         code: codeAccountsReceivable,
         name: 'الذمم المدينة',
         type: 'ASSET',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeInventory: GLAccountsCompanion.insert(
         code: codeInventory,
         name: 'المخزون',
         type: 'ASSET',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeInputVAT: GLAccountsCompanion.insert(
         code: codeInputVAT,
         name: 'ضريبة المدخلات (المشتريات)',
         type: 'ASSET',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeFixedAssets: GLAccountsCompanion.insert(
         code: codeFixedAssets,
         name: 'الأصول الثابتة',
         type: 'ASSET',
         isHeader: const Value(true),
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeAccumulatedDepreciation: GLAccountsCompanion.insert(
         code: codeAccumulatedDepreciation,
         name: 'مجمع الإهلاك',
         type: 'ASSET',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeAccountsPayable: GLAccountsCompanion.insert(
         code: codeAccountsPayable,
         name: 'الذمم الدائنة',
         type: 'LIABILITY',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeOutputVAT: GLAccountsCompanion.insert(
         code: codeOutputVAT,
         name: 'ضريبة المخرجات (المبيعات)',
         type: 'LIABILITY',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeLoansPayable: GLAccountsCompanion.insert(
         code: codeLoansPayable,
         name: 'القروض',
         type: 'LIABILITY',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeCapital: GLAccountsCompanion.insert(
         code: codeCapital,
         name: 'رأس المال',
         type: 'EQUITY',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeRetainedEarnings: GLAccountsCompanion.insert(
         code: codeRetainedEarnings,
         name: 'الأرباح المحتجزة',
         type: 'EQUITY',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeSalesRevenue: GLAccountsCompanion.insert(
         code: codeSalesRevenue,
         name: 'إيرادات المبيعات',
         type: 'REVENUE',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeSalesReturns: GLAccountsCompanion.insert(
         code: codeSalesReturns,
         name: 'مردودات المبيعات',
         type: 'REVENUE',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeCOGS: GLAccountsCompanion.insert(
         code: codeCOGS,
         name: 'تكلفة البضاعة المباعة',
         type: 'EXPENSE',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codePurchaseReturns: GLAccountsCompanion.insert(
         code: codePurchaseReturns,
         name: 'مردودات المشتريات',
         type: 'EXPENSE',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeCashOverShort: GLAccountsCompanion.insert(
         code: codeCashOverShort,
         name: 'العجز والزيادة في الصندوق',
         type: 'EXPENSE',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeOperatingExpenses: GLAccountsCompanion.insert(
         code: codeOperatingExpenses,
         name: 'المصروفات التشغيلية',
         type: 'EXPENSE',
         isHeader: const Value(true),
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
       codeDepreciationExpense: GLAccountsCompanion.insert(
         code: codeDepreciationExpense,
         name: 'مصروف الإهلاك',
         type: 'EXPENSE',
-        branchId: Value(branchId ?? 'BR001'),
+        branchId: Value(effectiveBranchId),
       ),
     };
 
@@ -690,6 +705,7 @@ class AccountingService {
     final newCode = '${parent.code}.$nextNumber';
 
     final id = const Uuid().v4();
+    final defaultBranchId = await _configService.getDefaultBranchId();
     await dao.createAccount(
       GLAccountsCompanion.insert(
         id: Value(id),
@@ -697,7 +713,7 @@ class AccountingService {
         name: 'حساب عميل: $customerName',
         type: 'ASSET',
         parentId: Value(parent.id),
-        branchId: const Value('BR001'),
+        branchId: Value(defaultBranchId),
       ),
     );
     return id;
@@ -720,6 +736,7 @@ class AccountingService {
     final newCode = '${parent.code}.$nextNumber';
 
     final id = const Uuid().v4();
+    final defaultBranchId = await _configService.getDefaultBranchId();
     await dao.createAccount(
       GLAccountsCompanion.insert(
         id: Value(id),
@@ -727,7 +744,7 @@ class AccountingService {
         name: 'حساب مورد: $supplierName',
         type: 'LIABILITY',
         parentId: Value(parent.id),
-        branchId: const Value('BR001'),
+        branchId: Value(defaultBranchId),
       ),
     );
     return id;
@@ -775,7 +792,7 @@ class AccountingService {
         postedAt: Value(DateTime.now()),
         currencyId: Value(sale.currencyId),
         exchangeRate: Value(sale.exchangeRate),
-        branchId: Value(sale.branchId ?? 'BR001'),
+        branchId: Value(sale.branchId ?? await _configService.getDefaultBranchId()),
       );
 
       final lines = [
@@ -786,7 +803,7 @@ class AccountingService {
           credit: const Value(0.0),
           currencyId: Value(sale.currencyId),
           exchangeRate: Value(sale.exchangeRate),
-          branchId: Value(sale.branchId ?? 'BR001'),
+          branchId: Value(sale.branchId ?? await _configService.getDefaultBranchId()),
         ),
         GLLinesCompanion.insert(
           entryId: entryId,
@@ -795,7 +812,7 @@ class AccountingService {
           credit: Value(sale.total - sale.tax),
           currencyId: Value(sale.currencyId),
           exchangeRate: Value(sale.exchangeRate),
-          branchId: Value(sale.branchId ?? 'BR001'),
+          branchId: Value(sale.branchId ?? await _configService.getDefaultBranchId()),
         ),
         if (sale.tax > 0)
           GLLinesCompanion.insert(
@@ -805,7 +822,7 @@ class AccountingService {
             credit: Value(sale.tax),
             currencyId: Value(sale.currencyId),
             exchangeRate: Value(sale.exchangeRate),
-            branchId: Value(sale.branchId ?? 'BR001'),
+            branchId: Value(sale.branchId ?? await _configService.getDefaultBranchId()),
           ),
       ];
 
@@ -819,7 +836,7 @@ class AccountingService {
           referenceId: sale.id,
           debit: sale.total,
           date: sale.createdAt,
-          branchId: sale.branchId ?? 'BR001',
+          branchId: sale.branchId ?? await _configService.getDefaultBranchId(),
         );
       }
 
@@ -880,7 +897,7 @@ class AccountingService {
             referenceId: Value(sale.id),
             status: const Value('POSTED'),
             postedAt: Value(DateTime.now()),
-            branchId: Value(sale.branchId ?? 'BR001'),
+            branchId: Value(sale.branchId ?? await _configService.getDefaultBranchId()),
           );
 
           final cogsLines = [
@@ -889,14 +906,14 @@ class AccountingService {
               accountId: cogsAccount.id,
               debit: Value(finalCost),
               credit: const Value(0.0),
-              branchId: Value(sale.branchId ?? 'BR001'),
+              branchId: Value(sale.branchId ?? await _configService.getDefaultBranchId()),
             ),
             GLLinesCompanion.insert(
               entryId: cogsEntryId,
               accountId: inventoryAccount.id,
               debit: const Value(0.0),
               credit: Value(finalCost),
-              branchId: Value(sale.branchId ?? 'BR001'),
+              branchId: Value(sale.branchId ?? await _configService.getDefaultBranchId()),
             ),
           ];
           await dao.createEntry(cogsEntry, cogsLines);
@@ -946,7 +963,7 @@ class AccountingService {
         postedAt: Value(DateTime.now()),
         currencyId: Value(purchase.currencyId),
         exchangeRate: Value(purchase.exchangeRate),
-        branchId: Value(purchase.branchId ?? 'BR001'),
+        branchId: Value(purchase.branchId ?? await _configService.getDefaultBranchId()),
       );
 
       final lines = [
@@ -957,7 +974,7 @@ class AccountingService {
           credit: const Value(0.0),
           currencyId: Value(purchase.currencyId),
           exchangeRate: Value(purchase.exchangeRate),
-          branchId: Value(purchase.branchId ?? 'BR001'),
+          branchId: Value(purchase.branchId ?? await _configService.getDefaultBranchId()),
         ),
         if (purchase.tax > 0)
           GLLinesCompanion.insert(
@@ -967,7 +984,7 @@ class AccountingService {
             credit: const Value(0.0),
             currencyId: Value(purchase.currencyId),
             exchangeRate: Value(purchase.exchangeRate),
-            branchId: Value(purchase.branchId ?? 'BR001'),
+            branchId: Value(purchase.branchId ?? await _configService.getDefaultBranchId()),
           ),
         GLLinesCompanion.insert(
           entryId: entryId,
@@ -976,7 +993,7 @@ class AccountingService {
           credit: Value(purchase.total),
           currencyId: Value(purchase.currencyId),
           exchangeRate: Value(purchase.exchangeRate),
-          branchId: Value(purchase.branchId ?? 'BR001'),
+          branchId: Value(purchase.branchId ?? await _configService.getDefaultBranchId()),
         ),
       ];
 
@@ -989,7 +1006,7 @@ class AccountingService {
           referenceId: purchase.id,
           credit: purchase.total,
           date: purchase.date,
-          branchId: purchase.branchId ?? 'BR001',
+          branchId: purchase.branchId ?? await _configService.getDefaultBranchId(),
         );
       }
 
@@ -1019,6 +1036,8 @@ class AccountingService {
 
     final customer = await db.customersDao.getCustomerById(customerId);
 
+    final defaultBranchId = await _configService.getDefaultBranchId();
+
     final entry = GLEntriesCompanion.insert(
       id: Value(entryId),
       description: 'Payment from ${customer?.name ?? "Customer"}',
@@ -1027,7 +1046,7 @@ class AccountingService {
       referenceId: Value(customerId),
       currencyId: Value(currencyId),
       exchangeRate: Value(exchangeRate),
-      branchId: const Value('BR001'),
+      branchId: Value(defaultBranchId),
     );
 
     final lines = [
@@ -1038,7 +1057,7 @@ class AccountingService {
         credit: const Value(0.0),
         currencyId: Value(currencyId),
         exchangeRate: Value(exchangeRate),
-        branchId: const Value('BR001'),
+        branchId: Value(defaultBranchId),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
@@ -1047,7 +1066,7 @@ class AccountingService {
         credit: Value(amount),
         currencyId: Value(currencyId),
         exchangeRate: Value(exchangeRate),
-        branchId: const Value('BR001'),
+        branchId: Value(defaultBranchId),
       ),
     ];
 
@@ -1071,6 +1090,8 @@ class AccountingService {
       throw Exception('AP or Payment account not found.');
     }
 
+    final defaultBranchId = await _configService.getDefaultBranchId();
+
     final entry = GLEntriesCompanion.insert(
       id: Value(entryId),
       description: 'Payment to Supplier',
@@ -1079,7 +1100,7 @@ class AccountingService {
       referenceId: Value(supplierId),
       currencyId: Value(currencyId),
       exchangeRate: Value(exchangeRate),
-      branchId: const Value('BR001'),
+      branchId: Value(defaultBranchId),
     );
 
     final lines = [
@@ -1090,7 +1111,7 @@ class AccountingService {
         credit: const Value(0.0),
         currencyId: Value(currencyId),
         exchangeRate: Value(exchangeRate),
-        branchId: const Value('BR001'),
+        branchId: Value(defaultBranchId),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
@@ -1099,7 +1120,7 @@ class AccountingService {
         credit: Value(amount),
         currencyId: Value(currencyId),
         exchangeRate: Value(exchangeRate),
-        branchId: const Value('BR001'),
+        branchId: Value(defaultBranchId),
       ),
     ];
 
@@ -1141,7 +1162,7 @@ class AccountingService {
       referenceId: Value(check.id),
       currencyId: Value(check.currencyId),
       exchangeRate: Value(check.exchangeRate),
-      branchId: const Value('BR001'),
+      branchId: Value(await _configService.getDefaultBranchId()),
     );
 
     final lines = [
@@ -1152,7 +1173,7 @@ class AccountingService {
         credit: const Value(0.0),
         currencyId: Value(check.currencyId),
         exchangeRate: Value(check.exchangeRate),
-        branchId: const Value('BR001'),
+        branchId: Value(await _configService.getDefaultBranchId()),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
@@ -1161,7 +1182,7 @@ class AccountingService {
         credit: Value(amount),
         currencyId: Value(check.currencyId),
         exchangeRate: Value(check.exchangeRate),
-        branchId: const Value('BR001'),
+        branchId: Value(await _configService.getDefaultBranchId()),
       ),
     ];
     await dao.createEntry(entry, lines);
@@ -1202,7 +1223,7 @@ class AccountingService {
       referenceId: Value(check.id),
       currencyId: Value(check.currencyId),
       exchangeRate: Value(check.exchangeRate),
-      branchId: const Value('BR001'),
+      branchId: Value(await _configService.getDefaultBranchId()),
     );
 
     final lines = [
@@ -1213,7 +1234,7 @@ class AccountingService {
         credit: const Value(0.0),
         currencyId: Value(check.currencyId),
         exchangeRate: Value(check.exchangeRate),
-        branchId: const Value('BR001'),
+        branchId: Value(await _configService.getDefaultBranchId()),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
@@ -1222,7 +1243,7 @@ class AccountingService {
         credit: Value(amount),
         currencyId: Value(check.currencyId),
         exchangeRate: Value(check.exchangeRate),
-        branchId: const Value('BR001'),
+        branchId: Value(await _configService.getDefaultBranchId()),
       ),
     ];
     await dao.createEntry(entry, lines);
@@ -1262,7 +1283,7 @@ class AccountingService {
       date: Value(saleReturn.createdAt),
       referenceType: const Value('SALE_RETURN'),
       referenceId: Value(saleReturn.id),
-      branchId: Value(originalSale.branchId ?? 'BR001'),
+      branchId: Value(originalSale.branchId ?? await _configService.getDefaultBranchId()),
     );
 
     final lines = [
@@ -1271,21 +1292,21 @@ class AccountingService {
         accountId: salesReturnAccount.id,
         debit: Value(revenuePortion),
         credit: const Value(0.0),
-        branchId: Value(originalSale.branchId ?? 'BR001'),
+        branchId: Value(originalSale.branchId ?? await _configService.getDefaultBranchId()),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
         accountId: taxAccount.id,
         debit: Value(taxPortion),
         credit: const Value(0.0),
-        branchId: Value(originalSale.branchId ?? 'BR001'),
+        branchId: Value(originalSale.branchId ?? await _configService.getDefaultBranchId()),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
         accountId: creditAccount.id,
         debit: const Value(0.0),
         credit: Value(totalReturned),
-        branchId: Value(originalSale.branchId ?? 'BR001'),
+        branchId: Value(originalSale.branchId ?? await _configService.getDefaultBranchId()),
       ),
     ];
 
@@ -1299,7 +1320,7 @@ class AccountingService {
         referenceId: saleReturn.id,
         credit: totalReturned,
         date: saleReturn.createdAt,
-        branchId: originalSale.branchId ?? 'BR001',
+        branchId: originalSale.branchId ?? await _configService.getDefaultBranchId(),
       );
     }
 
@@ -1347,7 +1368,7 @@ class AccountingService {
           date: Value(saleReturn.createdAt),
           referenceType: const Value('COGS_REVERSAL'),
           referenceId: Value(saleReturn.id),
-          branchId: Value(originalSale.branchId ?? 'BR001'),
+          branchId: Value(originalSale.branchId ?? await _configService.getDefaultBranchId()),
         );
         final cogsLines = [
           GLLinesCompanion.insert(
@@ -1355,14 +1376,14 @@ class AccountingService {
             accountId: inventoryAccount.id,
             debit: Value(totalCostReversed),
             credit: const Value(0.0),
-            branchId: Value(originalSale.branchId ?? 'BR001'),
+            branchId: Value(originalSale.branchId ?? await _configService.getDefaultBranchId()),
           ),
           GLLinesCompanion.insert(
             entryId: cogsEntryId,
             accountId: cogsAccount.id,
             debit: const Value(0.0),
             credit: Value(totalCostReversed),
-            branchId: Value(originalSale.branchId ?? 'BR001'),
+            branchId: Value(originalSale.branchId ?? await _configService.getDefaultBranchId()),
           ),
         ];
         await dao.createEntry(cogsEntry, cogsLines);
@@ -1411,7 +1432,7 @@ class AccountingService {
       date: Value(purchaseReturn.createdAt),
       referenceType: const Value('PURCHASE_RETURN'),
       referenceId: Value(purchaseReturn.id),
-      branchId: Value(originalPurchase.branchId ?? 'BR001'),
+      branchId: Value(originalPurchase.branchId ?? await _configService.getDefaultBranchId()),
     );
 
     final lines = [
@@ -1420,14 +1441,14 @@ class AccountingService {
         accountId: debitAccount.id,
         debit: Value(totalReturned),
         credit: const Value(0.0),
-        branchId: Value(originalPurchase.branchId ?? 'BR001'),
+        branchId: Value(originalPurchase.branchId ?? await _configService.getDefaultBranchId()),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
         accountId: purchaseReturnAccount.id,
         debit: const Value(0.0),
         credit: Value(purchasePortion),
-        branchId: Value(originalPurchase.branchId ?? 'BR001'),
+        branchId: Value(originalPurchase.branchId ?? await _configService.getDefaultBranchId()),
       ),
       if (taxPortion > 0)
         GLLinesCompanion.insert(
@@ -1435,7 +1456,7 @@ class AccountingService {
           accountId: taxAccount.id,
           debit: const Value(0.0),
           credit: Value(taxPortion),
-          branchId: Value(originalPurchase.branchId ?? 'BR001'),
+          branchId: Value(originalPurchase.branchId ?? await _configService.getDefaultBranchId()),
         ),
     ];
 
@@ -1454,7 +1475,7 @@ class AccountingService {
         referenceId: purchaseReturn.id,
         debit: totalReturned,
         date: purchaseReturn.createdAt,
-        branchId: originalPurchase.branchId ?? 'BR001',
+        branchId: originalPurchase.branchId ?? await _configService.getDefaultBranchId(),
       );
     }
   }
@@ -1503,7 +1524,7 @@ class AccountingService {
         referenceId: Value(asset.id),
         status: const Value('POSTED'),
         postedAt: Value(DateTime.now()),
-        branchId: const Value('BR001'),
+        branchId: Value(await _configService.getDefaultBranchId()),
       );
 
       final lines = [
@@ -1511,13 +1532,13 @@ class AccountingService {
           entryId: entryId,
           accountId: depreciationAccount.id,
           debit: Value(depreciationAmount),
-          branchId: const Value('BR001'),
+          branchId: Value(await _configService.getDefaultBranchId()),
         ),
         GLLinesCompanion.insert(
           entryId: entryId,
           accountId: accumulatedDepAccount.id,
           credit: Value(depreciationAmount),
-          branchId: const Value('BR001'),
+          branchId: Value(await _configService.getDefaultBranchId()),
         ),
       ];
 
@@ -1617,7 +1638,7 @@ class AccountingService {
           'إغلاق السنة المالية حتى ${endDate.toIso8601String().split('T')[0]}',
       date: Value(endDate),
       referenceType: const Value('YEAR_END'),
-      branchId: const Value('BR001'),
+      branchId: Value(await _configService.getDefaultBranchId()),
     );
 
     List<GLLinesCompanion> lines = [];
@@ -1631,7 +1652,7 @@ class AccountingService {
             debit: Value(balance),
             credit: const Value(0.0),
             memo: const Value('Year End Closing'),
-            branchId: const Value('BR001'),
+            branchId: Value(await _configService.getDefaultBranchId()),
           ),
         );
       }
@@ -1646,7 +1667,7 @@ class AccountingService {
             debit: const Value(0.0),
             credit: Value(balance),
             memo: const Value('Year End Closing'),
-            branchId: const Value('BR001'),
+            branchId: Value(await _configService.getDefaultBranchId()),
           ),
         );
       }
@@ -1665,7 +1686,7 @@ class AccountingService {
             incomeStatement.netIncome > 0 ? incomeStatement.netIncome : 0.0,
           ),
           memo: const Value('Net Income Transfer'),
-          branchId: const Value('BR001'),
+          branchId: Value(await _configService.getDefaultBranchId()),
         ),
       );
     }
@@ -1807,7 +1828,7 @@ class AccountingService {
       date: Value(DateTime.now()),
       referenceType: const Value('ASSEMBLY'),
       referenceId: Value(entryId),
-      branchId: const Value('BR001'),
+      branchId: Value(await _configService.getDefaultBranchId()),
     );
 
     final lines = [
@@ -1815,13 +1836,13 @@ class AccountingService {
         entryId: entryId,
         accountId: inventoryAccount.id,
         debit: Value(totalCost),
-        branchId: const Value('BR001'),
+        branchId: Value(await _configService.getDefaultBranchId()),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
         accountId: inventoryAccount.id,
         credit: Value(totalCost),
-        branchId: const Value('BR001'),
+        branchId: Value(await _configService.getDefaultBranchId()),
       ),
     ];
 
@@ -1842,20 +1863,20 @@ class AccountingService {
       description: description,
       date: Value(date),
       referenceType: const Value('EXPENSE'),
-      branchId: const Value('BR001'),
+      branchId: Value(await _configService.getDefaultBranchId()),
     );
     final lines = [
       GLLinesCompanion.insert(
         entryId: entryId,
         accountId: expenseAccountId,
         debit: Value(amount),
-        branchId: const Value('BR001'),
+        branchId: Value(await _configService.getDefaultBranchId()),
       ),
       GLLinesCompanion.insert(
         entryId: entryId,
         accountId: paymentAccountId,
         credit: Value(amount),
-        branchId: const Value('BR001'),
+        branchId: Value(await _configService.getDefaultBranchId()),
       ),
     ];
     await dao.createEntry(entry, lines);

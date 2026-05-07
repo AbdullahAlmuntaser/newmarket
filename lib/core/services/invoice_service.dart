@@ -4,8 +4,11 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import 'package:barcode/barcode.dart';
+import 'package:supermarket/core/services/app_config_service.dart';
 
 class InvoiceService {
+  final AppConfigService _configService = AppConfigService();
+
   Future<Uint8List> generateInvoice({
     required Sale sale,
     required List<SaleItem> items,
@@ -16,6 +19,8 @@ class InvoiceService {
     String? companyVatNumber,
   }) async {
     final pdf = pw.Document();
+    final taxRate = await _configService.getTaxRate();
+    final taxLabel = 'VAT (${(taxRate * 100).toStringAsFixed(0)}%)';
 
     final qrCodeSvg = _generateZatcaQr(
       companyName ?? 'My Supermarket',
@@ -184,7 +189,7 @@ class InvoiceService {
               (sale.total - sale.tax + sale.discount).toStringAsFixed(2),
             ),
             _totalRow('Discount', sale.discount.toStringAsFixed(2)),
-            _totalRow('VAT (15%)', sale.tax.toStringAsFixed(2)),
+            _totalRow(taxLabel, sale.tax.toStringAsFixed(2)),
             pw.Divider(color: PdfColors.grey),
             _totalRow(
               'Total Amount',

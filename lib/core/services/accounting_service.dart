@@ -8,6 +8,7 @@ import 'event_bus_service.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'dart:developer' as developer;
 import 'app_config_service.dart';
+import 'permission_service.dart';
 
 part 'accounting_service.g.dart';
 
@@ -225,10 +226,12 @@ class AccountingService {
   final EventBusService eventBus;
   late final AuditService _auditService;
   late final AppConfigService _configService;
+  late final PermissionService _permissionService;
 
   AccountingService(this.db, this.eventBus) {
     _auditService = AuditService(db);
     _configService = AppConfigService(db);
+    _permissionService = PermissionService(db);
     _listenToEvents();
   }
 
@@ -750,7 +753,10 @@ class AccountingService {
     return id;
   }
 
-  Future<void> postSale(Sale sale, List<SaleItem> items, {double? cogs}) async {
+  Future<void> postSale(Sale sale, List<SaleItem> items, {double? cogs, String? userId}) async {
+    if (userId != null) {
+      await _permissionService.executeIfAllowed(userId, 'POST_SALE', () async {});
+    }
     if (await db.accountingDao.isDateInClosedPeriod(sale.createdAt)) {
       throw Exception('Cannot post sale in a closed accounting period.');
     }
@@ -921,7 +927,10 @@ class AccountingService {
       }
     });
   }
-  Future<void> postPurchase(Purchase purchase, List<PurchaseItem> items) async {
+  Future<void> postPurchase(Purchase purchase, List<PurchaseItem> items, {String? userId}) async {
+    if (userId != null) {
+      await _permissionService.executeIfAllowed(userId, 'POST_PURCHASE', () async {});
+    }
     if (await db.accountingDao.isDateInClosedPeriod(purchase.date)) {
       throw Exception('Cannot post purchase in a closed accounting period.');
     }

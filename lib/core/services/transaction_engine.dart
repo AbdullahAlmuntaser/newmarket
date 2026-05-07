@@ -4,16 +4,19 @@ import 'package:supermarket/core/events/app_events.dart';
 import 'package:supermarket/core/services/event_bus_service.dart';
 import 'package:supermarket/core/services/audit_service.dart';
 import 'package:supermarket/core/services/inventory_costing_service.dart';
+import 'package:supermarket/core/services/app_config_service.dart';
 import 'package:uuid/uuid.dart';
 
 class TransactionEngine {
   final AppDatabase db;
   final EventBusService eventBus;
   late final AuditService _auditService;
+  late final AppConfigService _configService;
   InventoryCostingService? _costingService;
 
   TransactionEngine(this.db, this.eventBus) {
     _auditService = AuditService(db);
+    _configService = AppConfigService(db);
   }
 
   void setCostingService(InventoryCostingService costingService) {
@@ -419,7 +422,7 @@ class TransactionEngine {
         double returnQty = item.quantity;
         double factor = item.unitFactor;
         double qtyInBaseUnit = returnQty * factor;
-        const defaultWarehouse = 'WH001';
+        final defaultWarehouse = await _configService.getDefaultWarehouseId();
         
         // Return stock to the specific batch or create new batch if none
         final batchId = item.batchId;

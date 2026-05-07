@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'core/auth/auth_provider.dart';
 import 'core/services/permission_service.dart';
 import 'core/services/app_settings_service.dart';
+import 'core/services/app_config_service.dart';
 import 'core/services/inventory_service.dart';
 import 'core/services/accounting_service.dart';
 import 'core/services/event_bus_service.dart';
@@ -10,8 +11,10 @@ import 'core/services/financial_control_service.dart';
 import 'core/services/grn_service.dart';
 import 'core/utils/drive_backup_service.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/services/unit_conversion_service.dart';
 import 'data/datasources/local/app_database.dart';
 import 'data/datasources/local/daos/products_dao.dart';
+import 'data/datasources/local/daos/product_units_dao.dart';
 import 'core/services/posting_engine.dart';
 import 'core/services/inventory_costing_service.dart';
 import 'data/datasources/local/daos/stock_movement_dao.dart';
@@ -61,6 +64,15 @@ Future<void> initServices() async {
     sl.registerLazySingleton<AuditDao>(() => AuditDao(db));
     sl.registerLazySingleton<StockMovementDao>(() => StockMovementDao(db));
     sl.registerLazySingleton<ProductsDao>(() => ProductsDao(db));
+    sl.registerLazySingleton<ProductUnitsDao>(() => ProductUnitsDao(db));
+    
+    debugPrint("DI: Registering UnitConversionService...");
+    sl.registerLazySingleton<UnitConversionService>(
+      () => UnitConversionService(
+        productsDao: sl<ProductsDao>(),
+        productUnitsDao: sl<ProductUnitsDao>(),
+      ),
+    );
     debugPrint("DI: DAOs registered");
 
     debugPrint("DI: Registering core services...");
@@ -77,11 +89,13 @@ Future<void> initServices() async {
     sl.registerLazySingleton<PermissionService>(() => PermissionService(db));
     sl.registerLazySingleton<AuditService>(() => AuditService(db));
     sl.registerLazySingleton<InventoryService>(() => InventoryService(db));
+    sl.registerLazySingleton<AppConfigService>(() => AppConfigService(db));
+    sl.registerLazySingleton<AppSettingsService>(() => AppSettingsService(db));
     debugPrint("DI: Core services registered");
 
     debugPrint("DI: Registering business services...");
     sl.registerLazySingleton<PurchaseService>(
-      () => PurchaseService(db, sl<PostingEngine>(), sl<InventoryCostingService>()),
+      () => PurchaseService(db, sl<PostingEngine>(), sl<InventoryCostingService>(), sl<AppConfigService>()),
     );
     sl.registerLazySingleton<SalesService>(
       () => SalesService(sl<PostingEngine>(), sl<InventoryService>(), sl<AppSettingsService>(), sl<PermissionService>()),

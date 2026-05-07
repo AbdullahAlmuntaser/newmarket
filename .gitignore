@@ -1,68 +1,31 @@
 ```
-# Dart/Flutter specific
-.dart_tool/
-.packages
-pubspec.lock
-*.g.dart
-*.freezed.dart
-
-# Build outputs
+# Build artifacts
+*.dart_tool/
+*.build/
 build/
-*.apk
-*.aab
-*.app
-*.exe
-*.dll
-*.so
-*.dylib
 
 # Dependencies
-vendor/
-.externalNativeBuild/
+.pub/
+.dart_tool/
 
 # Logs
 *.log
-**/logs
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.backup
-
-# Environment variables
+# Environment
 .env
 .env.local
-.env.*
-!.env.example
+*.env.*
 
 # IDE files
 .idea/
-*.iml
-*.iws
 .vscode/
 *.swp
 *.swo
 
-# Testing
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage
 coverage/
-*.coverage
-.jest/
-
-# CI
-.github/
-.gitlab/
-
-# Distribution
-dist/
-bin/
 ```

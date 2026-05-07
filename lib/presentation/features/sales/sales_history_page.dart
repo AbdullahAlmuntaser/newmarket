@@ -153,4 +153,98 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
           SaleDetailsBottomSheet(sale: sale, db: db, l10n: l10n),
     );
   }
+  
+  void _showSaleActions(BuildContext context, Sale sale) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.visibility),
+              title: const Text('عرض التفاصيل'),
+              onTap: () {
+                Navigator.pop(context);
+                _showSaleDetails(context, Provider.of<AppDatabase>(context, listen: false), sale, AppLocalizations.of(context)!);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.print),
+              title: const Text('طباعة الفاتورة'),
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: Implement print functionality
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('جاري تحضير الطباعة...')),
+                );
+              },
+            ),
+            if (sale.syncStatus == 0)
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.orange),
+                title: const Text('تعديل الفاتورة', style: TextStyle(color: Colors.orange)),
+                onTap: () {
+                  Navigator.pop(context);
+                  // TODO: Navigate to edit page
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('ميزة التعديل قيد التطوير')),
+                  );
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('حذف الفاتورة', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDelete(context, sale);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _confirmDelete(BuildContext context, Sale sale) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: Text('هل أنت متأكد من حذف الفاتورة ${sale.id.substring(0, 8)}؟\nهذا الإجراء لا يمكن التراجع عنه.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              // TODO: Implement delete functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('ميزة الحذف قيد التطوير')),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('حذف', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<List<Sale>> _loadSales(AppDatabase db) async {
+    setState(() => _isLoadingMore = true);
+    
+    try {
+      final allSales = await (db.select(
+        db.sales,
+      )..orderBy([(t) => drift.OrderingTerm.desc(t.createdAt)])).get();
+      
+      return allSales;
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
+    }
+  }
 }
